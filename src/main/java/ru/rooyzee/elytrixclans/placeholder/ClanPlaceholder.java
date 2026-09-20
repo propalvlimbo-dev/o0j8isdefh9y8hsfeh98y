@@ -33,7 +33,6 @@ public class ClanPlaceholder extends PlaceholderExpansion {
     // на сотне игроков — это десятки тысяч сортировок в минуту в main-потоке. Кэшируем на 15 секунд.
     private volatile long topStamp = 0L;
     private volatile List<Clan> topByExp = Collections.emptyList();
-    private volatile List<Clan> topByPoints = Collections.emptyList();
 
     public ClanPlaceholder(Main plugin) {
         this.plugin = plugin;
@@ -57,14 +56,9 @@ public class ClanPlaceholder extends PlaceholderExpansion {
         Main main = Main.getInstance();
         if (main == null || main.getClanManager() == null) return EMPTY;
 
-        if (identifier.startsWith("clan_top_exp_")) {
-            return getTopClans(identifier, parsePlace(identifier), false, false);
-        }
-        if (identifier.startsWith("clan_top_points_")) {
-            return getTopClans(identifier, parsePlace(identifier), true, true);
-        }
-        if (identifier.startsWith("clan_top_name_")) {
-            return getTopClans(identifier, parsePlace(identifier), false, false);
+        // Топ по поинтам убран вместе с самими поинтами: осталось только количество опыта.
+        if (identifier.startsWith("clan_top_exp_") || identifier.startsWith("clan_top_name_")) {
+            return getTopClans(identifier, parsePlace(identifier));
         }
 
         Clan clan = player != null && Main.getInstance().getClanManager() != null
@@ -101,39 +95,33 @@ public class ClanPlaceholder extends PlaceholderExpansion {
         }
     }
 
-    private String getTopClans(String identifier, int place, boolean byPoints, boolean showPoints) {
+    private String getTopClans(String identifier, int place) {
         if (place < 1 || place > TOP_SIZE) return EMPTY;
-        List<Clan> top = sortedTop(byPoints);
+        List<Clan> top = sortedTop();
         if (place > top.size()) return EMPTY;
         Clan clan = top.get(place - 1);
         if (clan == null) return EMPTY;
         String color = LevelUtil.getClanLevel(clan.getExp()).getColor();
-        if (showPoints) {
-            return HexUtil.translateHexColorCodes(color + FORMAT.get().format(clan.getPoints()));
-        }
         if (identifier.contains("exp")) {
-            return HexUtil.translateHexColorCodes(color + FORMAT.get().format(LevelUtil.getClanLevel(clan.getExp()).getLevel()));
+            return HexUtil.translateHexColorCodes(color + FORMAT.get().format(clan.getExp()));
         }
         return HexUtil.translateHexColorCodes(color + clan.getName());
     }
 
-    private List<Clan> sortedTop(boolean byPoints) {
+    private List<Clan> sortedTop() {
         if (Main.getInstance() == null || Main.getInstance().getClanManager() == null) {
             return Collections.emptyList();
         }
         long now = System.currentTimeMillis();
-        List<Clan> cached = byPoints ? topByPoints : topByExp;
-        if (now - topStamp < TOP_CACHE_MS && !cached.isEmpty()) return cached;
+        if (now - topStamp < TOP_CACHE_MS && !topByExp.isEmpty()) return topByExp;
 
         List<Clan> clans = Main.getInstance().getClanManager().getClans();
         List<Clan> copy = new ArrayList<>(clans);
-        copy.sort(byPoints
-                ? Comparator.comparingDouble(Clan::getPoints).reversed()
-                : Comparator.comparingDouble(Clan::getExp).reversed());
+        copy.sort(Comparator.comparingDouble(Clan::getExp).reversed());
         List<Clan> top = Collections.unmodifiableList(new ArrayList<>(copy.subList(0, Math.min(TOP_SIZE, copy.size()))));
 
-        if (byPoints) topByPoints = top; else topByExp = top;
-        if (now - topStamp >= TOP_CACHE_MS) topStamp = now;
+        topByExp = top;
+        topStamp = now;
         return top;
     }
 }

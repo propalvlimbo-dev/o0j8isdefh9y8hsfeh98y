@@ -11,74 +11,105 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import ru.rooyzee.elytrixclans.Main;
+import ru.rooyzee.elytrixclans.clans.Clan;
+import ru.rooyzee.elytrixclans.function.impl.shop.ShopFunction;
 import ru.rooyzee.elytrixclans.function.impl.shop.kit.Kit;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
 import ru.rooyzee.elytrixclans.utils.MenuUtil;
 import ru.rooyzee.elytrixclans.utils.NBTUtil;
 
+/** Предпросмотр набора: состав, цена в монетах и кнопка покупки. */
 public class KitPreviewInventory implements InventoryHolder {
 
-    private final Inventory inventory;
-    private final Kit kit;
+    private static final int[] PREVIEW_SLOTS = {
+            10, 11, 12, 13, 14, 15, 16,
+            19, 20, 21, 22, 23, 24, 25,
+            28, 29, 30, 31, 32, 33, 34,
+            37, 38, 39, 40, 41, 42, 43
+    };
 
-    public KitPreviewInventory(Player player, Kit kit) {
-        this.kit = kit;
+    private final Inventory inventory;
+    private final int shopPage;
+
+    public KitPreviewInventory(Player player, Kit kit, int shopPage) {
+        this.shopPage = shopPage;
         inventory = Bukkit.createInventory(this, 54,
-                HexUtil.translateHexColorCodes("&#F8BEFB&lПревью: " + kit.getDisplayName()));
+                HexUtil.translateHexColorCodes("&#F8BEFB&lНабор: ") + kit.getDisplayName());
 
         MenuUtil.applyLayout(inventory);
-
-        int[] previewSlots = {
-                11, 12, 13, 14, 15,
-                19, 20, 21, 22, 23, 24, 25,
-                28, 29, 30, 31, 32, 33, 34,
-                38, 39, 40, 41, 42
-        };
+        // Слоты 10, 16, 37 и 43 по требованию отданы под товар — стекла там нет.
+        MenuUtil.clearShopFreedSlots(inventory);
 
         int i = 0;
         for (ItemStack item : kit.getItems()) {
-            if (i >= previewSlots.length) break;
-            ItemStack preview = item.clone();
-            inventory.setItem(previewSlots[i], preview);
+            if (i >= PREVIEW_SLOTS.length) break;
+            inventory.setItem(PREVIEW_SLOTS[i], item.clone());
             i++;
         }
+        if (!kit.getCommands().isEmpty() && i < PREVIEW_SLOTS.length) {
+            inventory.setItem(PREVIEW_SLOTS[i], commandsInfo(kit));
+        }
 
+        Clan clan = Main.getInstance().getClanManager().getPlayerClan(player);
+        inventory.setItem(4, MenuUtil.createInfoItem(clan,
+                Main.getInstance().getBuyManager().getBalance(player)));
+        inventory.setItem(49, buyButton(kit));
+        inventory.setItem(45, MenuUtil.createBackButton());
+    }
+
+    private ItemStack commandsInfo(Kit kit) {
+        ItemStack item = new ItemStack(Material.NETHER_STAR);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(HexUtil.translateHexColorCodes("&#F8BEFB&lДополнительно"));
+            List<String> lore = new ArrayList<>();
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fВ набор входят особые предметы:"));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &f" + kit.getCommands().size() + " шт."));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    private ItemStack buyButton(Kit kit) {
         ItemStack buyBtn = new ItemStack(Material.EMERALD);
         ItemMeta buyMeta = buyBtn.getItemMeta();
         if (buyMeta != null) {
             buyMeta.setDisplayName(HexUtil.translateHexColorCodes("&7« &aКупить набор &7»"));
             List<String> lore = new ArrayList<>();
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
-            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fНабор: " + kit.getDisplayName()));
-            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fЦена: &#F8BEFB" + kit.getPrice() + " &7поинтов"));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fНабор: ") + kit.getDisplayName());
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСтоимость: &#F8BEFB"
+                    + MenuUtil.money(kit.getPrice()) + " монет"));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fТребуется уровень: &#F8BEFB"
+                    + kit.getRequiredLevel()));
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
             lore.add(HexUtil.translateHexColorCodes("&7● &fНажмите для покупки"));
             buyMeta.setLore(lore);
             buyBtn.setItemMeta(buyMeta);
         }
         NBTUtil.addItemNBT(buyBtn, "kit_buy", kit.getId());
-        inventory.setItem(49, buyBtn);
-
-        inventory.setItem(45, MenuUtil.createBackButton());
+        return buyBtn;
     }
 
     public void onInventoryClick(InventoryClickEvent event) {
         event.setCancelled(true);
-        if (event.getCurrentItem() == null || !(event.getWhoClicked() instanceof Player)) return;
-        Player player = (Player) event.getWhoClicked();
         ItemStack item = event.getCurrentItem();
+        if (item == null || !(event.getWhoClicked() instanceof Player)) return;
+        Player player = (Player) event.getWhoClicked();
 
         if (NBTUtil.hasItemNBT(item, "arrowItem")) {
-            player.openInventory(new KitsInventory(player).getInventory());
+            player.openInventory(new ShopFunction(player, shopPage).getInventory());
             return;
         }
 
         if (NBTUtil.hasItemNBT(item, "kit_buy")) {
-            String kitId = NBTUtil.getNBTvalue(item, "kit_buy");
-            if (kitId == null) return;
-            Kit kit = Main.getInstance().getKitManager().getKit(kitId);
+            Kit kit = Main.getInstance().getKitManager().getKit(NBTUtil.getNBTvalue(item, "kit_buy"));
             if (kit == null) return;
             Main.getInstance().getBuyManager().buyKit(player, kit);
+            player.openInventory(new KitPreviewInventory(player, kit, shopPage).getInventory());
         }
     }
 

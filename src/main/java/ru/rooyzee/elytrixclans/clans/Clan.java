@@ -15,30 +15,31 @@ public class Clan implements ConfigurationSerializable {
     private String name;
     private String owner;
     private CopyOnWriteArrayList<ClanMember> memberList;
-    private double points;
     private boolean pvp;
     private boolean glow;
+    /** Цвет подсветки в формате #RRGGBB. Раньше жил только в памяти и терялся при рестарте. */
+    private String glowColor;
     private double exp;
     private Home home;
 
-    public Clan(double exp, Home home, String owner, CopyOnWriteArrayList<ClanMember> memberList, double points, boolean pvp, boolean glow, String name) {
+    public Clan(double exp, Home home, String owner, CopyOnWriteArrayList<ClanMember> memberList, boolean pvp, boolean glow, String glowColor, String name) {
         this.owner = owner;
         this.exp = Math.max(0, sanitize(exp));
         // Пустой список вместо null: на memberList завязаны все циклы по клану.
         this.memberList = memberList != null ? memberList : new CopyOnWriteArrayList<>();
         this.name = name;
-        this.points = Math.max(0, sanitize(points));
         this.home = home;
         this.pvp = pvp;
         this.glow = glow;
+        this.glowColor = glowColor;
     }
 
     public double getExp() { return exp; }
     public void setExp(double exp) { this.exp = Math.max(0, sanitize(exp)); }
     public Home getHome() { return home; }
     public void setHome(Home home) { this.home = home; }
-    public double getPoints() { return points; }
-    public void setPoints(double points) { this.points = Math.max(0, sanitize(points)); }
+    public String getGlowColor() { return glowColor; }
+    public void setGlowColor(String glowColor) { this.glowColor = glowColor; }
     public boolean isGlow() { return glow; }
     public void setGlow(boolean glow) { this.glow = glow; }
     public boolean isPvp() { return pvp; }
@@ -52,7 +53,7 @@ public class Clan implements ConfigurationSerializable {
         this.memberList = memberList != null ? memberList : new CopyOnWriteArrayList<>();
     }
 
-    /** exp/points — double; NaN/Infinity превратились бы в битый YAML и NPE при округлениях. */
+    /** exp — double; NaN/Infinity превратились бы в битый YAML и NPE при округлениях. */
     private static double sanitize(double value) {
         if (Double.isNaN(value) || Double.isInfinite(value)) return 0;
         return value;
@@ -70,9 +71,9 @@ public class Clan implements ConfigurationSerializable {
             if (serialized != null) members.add(serialized);
         }
         map.put("memberList", members);
-        map.put("points", points);
         map.put("pvp", pvp);
         map.put("glow", glow);
+        if (glowColor != null) map.put("glowColor", glowColor);
         map.put("exp", exp);
         map.put("home", home != null ? home.serialize() : null);
         return map;
@@ -98,10 +99,10 @@ public class Clan implements ConfigurationSerializable {
                 }
             }
         }
-        double points = map.get("points") instanceof Number ? ((Number) map.get("points")).doubleValue() : 0;
         double exp = map.get("exp") instanceof Number ? ((Number) map.get("exp")).doubleValue() : 0;
         boolean pvp = map.get("pvp") instanceof Boolean && (Boolean) map.get("pvp");
         boolean glow = map.get("glow") instanceof Boolean && (Boolean) map.get("glow");
+        String glowColor = map.get("glowColor") instanceof String ? (String) map.get("glowColor") : null;
         Home home = null;
         if (map.get("home") instanceof Map) {
             try {
@@ -112,6 +113,6 @@ public class Clan implements ConfigurationSerializable {
                 home = null;
             }
         }
-        return new Clan(exp, home, owner, memberList, points, pvp, glow, name);
+        return new Clan(exp, home, owner, memberList, pvp, glow, glowColor, name);
     }
 }

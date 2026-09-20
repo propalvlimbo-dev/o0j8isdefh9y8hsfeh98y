@@ -2,30 +2,38 @@ package ru.rooyzee.elytrixclans.function.impl.shop.config;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
 import ru.rooyzee.elytrixclans.Main;
-import ru.rooyzee.elytrixclans.function.impl.shop.object.ArrowItem;
 import ru.rooyzee.elytrixclans.function.impl.shop.object.ShopItem;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
 import ru.rooyzee.elytrixclans.utils.NBTUtil;
 import ru.rooyzee.elytrixclans.utils.ShopItemMeta;
 
+/**
+ * Загрузка ассортимента магазина из shop/shop_item.yml.
+ *
+ * Структура файла плоская: секция items, внутри — записи с полями
+ * name / material / amount / price / level / lore / commands + свойства ShopItemMeta.
+ * Слоты не указываются: порядок позиций определяется сортировкой (уровень, затем цена),
+ * а раскладка по страницам считается автоматически в ShopFunction.
+ */
 public class ItemsConfiguration {
+
+    /** NBT-ключ, по которому BuyManager узнаёт позицию магазина в витрине. */
+    public static final String NBT_SHOP_ITEM = "clanShopItem";
 
     private File configFile;
     private FileConfiguration fileConfiguration;
+    private List<ShopItem> items = Collections.emptyList();
 
     public ItemsConfiguration() {
         setupYml();
@@ -33,11 +41,14 @@ public class ItemsConfiguration {
 
     public void reloadYml() {
         fileConfiguration = YamlConfiguration.loadConfiguration(configFile);
+        loadItems();
     }
 
     private void setupYml() {
         File shopFolder = new File(Main.getInstance().getDataFolder(), "shop");
-        if (!shopFolder.exists()) shopFolder.mkdirs();
+        if (!shopFolder.exists() && !shopFolder.mkdirs()) {
+            Bukkit.getLogger().warning("[ElytrixClans] Не удалось создать папку shop/");
+        }
 
         configFile = new File(shopFolder, "shop_item.yml");
         if (!configFile.exists()) {
@@ -47,126 +58,86 @@ public class ItemsConfiguration {
             }
         }
         fileConfiguration = YamlConfiguration.loadConfiguration(configFile);
+        loadItems();
     }
 
-    public List<ArrowItem> serializeArrowItems(String category) {
-        List<ArrowItem> items = new ArrayList<>();
-        ConfigurationSection section = fileConfiguration.getConfigurationSection(category);
-        if (section == null) return items;
-        for (String key : section.getKeys(false)) {
-            String path = category + "." + key;
-            String material = fileConfiguration.getString(path + ".material", "");
-            if (!material.equalsIgnoreCase("TIPPED_ARROW")) continue;
-            String effect = fileConfiguration.getString(path + ".effect", "");
-            if (PotionEffectType.getByName(effect) == null) {
-                Bukkit.getLogger().warning("[ElytrixClans] Неизвестный эффект стрелы: " + effect);
-                continue;
+    private void loadItems() {
+        List<ShopItem> loaded = new ArrayList<>();
+        ConfigurationSection section = fileConfiguration.getConfigurationSection("items");
+        if (section != null) {
+            for (String key : section.getKeys(false)) {
+                ConfigurationSection entry = section.getConfigurationSection(key);
+                if (entry == null) continue;
+                try {
+                    loaded.add(readItem(key, entry));
+                } catch (Exception e) {
+                    Bukkit.getLogger().warning("[ElytrixClans] Позиция магазина '" + key
+                            + "' пропущена: " + e.getMessage());
+                }
             }
-            String name = HexUtil.translateHexColorCodes(fileConfiguration.getString(path + ".name", ""));
-            int price = fileConfiguration.getInt(path + ".price");
-            int amplifier = fileConfiguration.getInt(path + ".amplifier");
-            int slot = fileConfiguration.getInt(path + ".slot");
-            int count = fileConfiguration.getInt(path + ".count");
-            int duration = fileConfiguration.getInt(path + ".duration");
-            List<String> lores = new ArrayList<>();
-            for (String line : fileConfiguration.getStringList(path + ".lore")) {
-                lores.add(HexUtil.translateHexColorCodes(line));
-            }
-            items.add(new ArrowItem(name, material, lores, price, count, slot, amplifier, duration, effect, path));
         }
+        // Порядок витрины: сначала доступное на низких уровнях, внутри уровня — от дешёвого
+        // к дорогому. Так «сначала предметы хуже, дальше открываются новые» выполняется само.
+        loaded.sort(Comparator
+                .comparingInt(ShopItem::getRequiredLevel)
+                .thenComparingDouble(ShopItem::getPrice)
+                .thenComparing(ShopItem::getId));
+        items = Collections.unmodifiableList(loaded);
+    }
+
+    private ShopItem readItem(String key, ConfigurationSection entry) {
+        String material = entry.getString("material", "STONE");
+        if (Material.matchMaterial(material.toUpperCase()) == null) {
+            throw new IllegalArgumentException("неизвестный материал " + material);
+        }
+        String name = HexUtil.translateHexColorCodes(entry.getString("name", key));
+        double price = entry.getDouble("price", 0.0);
+        int amount = entry.getInt("amount", 1);
+        int level = entry.getInt("level", 1);
+        List<String> lore = new ArrayList<>();
+        for (String line : entry.getStringList("lore")) {
+            lore.add(HexUtil.translateHexColorCodes(line));
+        }
+        List<String> commands = entry.getStringList("commands");
+        return new ShopItem(key, name, material.toUpperCase(), lore, price, amount, level,
+                commands, ShopItemMeta.of(entry));
+    }
+
+    /** Весь ассортимент в порядке витрины. */
+    public List<ShopItem> getItems() {
         return items;
     }
 
-    public List<ShopItem> serializeItems(String category) {
-        List<ShopItem> items = new ArrayList<>();
-        ConfigurationSection section = fileConfiguration.getConfigurationSection(category);
-        if (section == null) return items;
-        for (String key : section.getKeys(false)) {
-            String path = category + "." + key;
-            String material = fileConfiguration.getString(path + ".material", "");
-            // TIPPED_ARROW с распознанным legacy-эффектом рисует стрелочная ветка (она же
-            // добавляет цвет и подпись эффекта). Стрелы «из креатива» держат эффект в базовых
-            // данных зелья (effect в конфиге пуст) — их ведём общей веткой, иначе позиция
-            // вообще не появилась бы в меню.
-            if (material.equalsIgnoreCase("TIPPED_ARROW")
-                    && PotionEffectType.getByName(fileConfiguration.getString(path + ".effect", "")) != null) {
-                continue;
-            }
-            String name = HexUtil.translateHexColorCodes(fileConfiguration.getString(path + ".name", ""));
-            int price = fileConfiguration.getInt(path + ".price");
-            int slot = fileConfiguration.getInt(path + ".slot");
-            int count = fileConfiguration.getInt(path + ".count");
-            List<String> lores = new ArrayList<>();
-            for (String line : fileConfiguration.getStringList(path + ".lore")) {
-                lores.add(HexUtil.translateHexColorCodes(line));
-            }
-            items.add(new ShopItem(name, material, lores, price, count, slot, path));
+    public ShopItem getItem(String id) {
+        if (id == null) return null;
+        for (ShopItem item : items) {
+            if (item.getId().equalsIgnoreCase(id)) return item;
         }
-        return items;
+        return null;
     }
 
-    public void setItems(Inventory inventory, String category) {
-        for (ArrowItem arrow : serializeArrowItems(category)) {
-            try {
-                ItemStack itemStack = new ItemStack(Material.TIPPED_ARROW);
-                PotionMeta meta = (PotionMeta) itemStack.getItemMeta();
-                if (meta != null) {
-                    meta.setDisplayName(arrow.getName());
-                    meta.setColor(PotionEffectType.getByName(arrow.getEffect()).getColor());
-                    meta.addCustomEffect(new PotionEffect(
-                            PotionEffectType.getByName(arrow.getEffect()),
-                            arrow.getDuration() * 20 * 10,
-                            arrow.getAmplifier()), true);
-                    meta.setLore(arrow.getLore());
-                    meta.addItemFlags(ItemFlag.HIDE_POTION_EFFECTS);
-                    itemStack.setItemMeta(meta);
-                }
-                itemStack.setAmount(safeAmount(itemStack, arrow.getCount()));
-                ShopItemMeta.apply(itemStack, metaOf(arrow.getMetaPath()));
-                NBTUtil.addItemNBT(itemStack, "shopItem",
-                        "shopItem_wtf_" + arrow.getMaterial() + "_wtf_" + itemStack.getAmount() + "_wtf_" + arrow.getPrice() + "_wtf_" + arrow.getEffect());
-                if (isValidSlot(inventory, arrow.getSlot())) inventory.setItem(arrow.getSlot(), itemStack);
-            } catch (Exception e) {
-                Bukkit.getLogger().warning("[ElytrixClans] Не удалось построить стрелу '" + arrow.getName() + "': " + e.getMessage());
-            }
+    /**
+     * Строит «чистый» предмет позиции — ровно то, что получит покупатель.
+     * Для командных позиций это только иконка: сама выдача идёт консольными командами.
+     */
+    public static ItemStack buildRawItem(ShopItem shopItem) {
+        Material material = Material.matchMaterial(shopItem.getMaterial());
+        if (material == null) material = Material.STONE;
+        ItemStack stack = new ItemStack(material, Math.min(material.getMaxStackSize(), shopItem.getAmount()));
+        ShopItemMeta.apply(stack, shopItem.getMeta());
+        return stack;
+    }
+
+    /** Предмет-витрина: тот же предмет плюс оформление магазина и NBT с id позиции. */
+    public static ItemStack buildDisplayItem(ShopItem shopItem, List<String> lore) {
+        ItemStack stack = buildRawItem(shopItem);
+        ItemMeta meta = stack.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(shopItem.getName());
+            meta.setLore(lore);
+            stack.setItemMeta(meta);
         }
-
-        for (ShopItem item : serializeItems(category)) {
-            try {
-                ItemStack itemStack = new ItemStack(Material.valueOf(item.getMaterial()));
-                ItemMeta meta = itemStack.getItemMeta();
-                if (meta != null) {
-                    meta.setDisplayName(item.getName());
-                    meta.setLore(item.getLore());
-                    itemStack.setItemMeta(meta);
-                }
-                itemStack.setAmount(safeAmount(itemStack, item.getCount()));
-                ShopItemMeta.apply(itemStack, metaOf(item.getMetaPath()));
-                NBTUtil.addItemNBT(itemStack, "shopItem",
-                        "shopItem_wtf_" + item.getMaterial() + "_wtf_" + itemStack.getAmount() + "_wtf_" + item.getPrice());
-                if (isValidSlot(inventory, item.getSlot())) inventory.setItem(item.getSlot(), itemStack);
-            } catch (Exception e) {
-                Bukkit.getLogger().warning("[ElytrixClans] Не удалось построить предмет магазина '"
-                        + item.getMaterial() + "': " + e.getMessage());
-            }
-        }
+        NBTUtil.addItemNBT(stack, NBT_SHOP_ITEM, shopItem.getId());
+        return stack;
     }
-
-    /** Зачарования, эффекты зелий, прочность и флаги позиции — из той же записи конфига. */
-    private ShopItemMeta.Reader metaOf(String path) {
-        if (path == null) return ShopItemMeta.empty();
-        return ShopItemMeta.of(fileConfiguration.getConfigurationSection(path));
-    }
-
-    /** Количество не должно превышать макс. стак материала и не может быть нулевым. */
-    private static int safeAmount(ItemStack item, int count) {
-        int max = item.getMaxStackSize();
-        int amount = Math.max(1, count);
-        return max > 0 ? Math.min(amount, max) : amount;
-    }
-
-    /** Слот вне инвентаря (опечатка в конфиге) — это исключение на каждом открытии меню. */
-    private static boolean isValidSlot(Inventory inventory, int slot) {
-        return slot >= 0 && slot < inventory.getSize();
-    }
-}
+}

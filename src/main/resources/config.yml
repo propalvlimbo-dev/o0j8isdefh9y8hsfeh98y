@@ -1,17 +1,18 @@
-points-for-kill-mob: 0.001
-exp-for-kill-mob: 0.001
-points-for-kill: 0.01
-exp-for-kill: 0.01
-points-for-block: 0.01
-exp-for-block: 0.01
+# Опыт клана начисляется ТОЛЬКО за убийство игроков и за ивент «Талисман»
+# (внешние плагины зовут /elytrixclan addexp или ClanManager.addClanExp).
+# Опыт за мобов, за добычу блоков и потеря опыта при смерти убраны полностью.
+# Поинтов больше нет: в магазине валюта — обычные монеты Vault.
+
+# Сколько опыта клан получает за убийство игрока из другого клана.
+exp-for-kill: 5
+# Через сколько часов повторное убийство ТОГО ЖЕ игрока снова даст опыт.
+# Кулдаун хранится в kill_cooldowns.yml и переживает перезапуск сервера.
+kill-exp-cooldown-hours: 12
+
 clan_name_min_length: 3
 clan_name_max_length: 6
 clan_create_price: 50000
-edit_item_price: 29
-expForKill: 1
-pointsForKill: 1
 inviteExit: 15
-timeForKillReload: 1200
 
 blockedNames:
   - "25565"
@@ -47,7 +48,8 @@ messages:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cНекорректное число"
   admUsage:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &f/elytrixclan remove <клан>"
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &f/elytrixclan set <клан> points/exp <число>"
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &f/elytrixclan set <клан> exp <число>"
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &f/elytrixclan addexp <клан> <число>"
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &f/elytrixclan reload"
   usage:
     - ""
@@ -147,12 +149,16 @@ messages:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cУ игрока уже нужная роль"
   demoted:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aРоль игрока изменена"
-  noPoints:
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cНедостаточно поинтов"
   buyItem:
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aПредмет успешно куплен!"
-  notPoints:
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cНедостаточно поинтов"
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aКуплено: &f%item% &7за &#F8BEFB%price% &7монет"
+  shopLevelLocked:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cТовар откроется на &#F8BEFB%level% &cуровне клана"
+  noEconomy:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cЭкономика недоступна, покупка невозможна"
+  expForKill:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aКлан получил &#F8BEFB+%exp% &aопыта за убийство игрока &#F8BEFB%player%"
+  killCooldown:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &7Опыт за убийство &f%player% &7будет снова доступен через &#F8BEFB%time%"
   disbandConfirm:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fДля подтверждения удаления клана"
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fВведите в чат: &#F8BEFB%clan%"

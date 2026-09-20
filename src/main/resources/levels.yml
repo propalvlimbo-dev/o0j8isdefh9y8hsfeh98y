@@ -1,41 +1,44 @@
 levels:
+  # Опыт клана даётся только за убийства игроков (+5, кулдаун 12 часов на ту же жертву)
+  # и за ивент «Талисман». Цвет — оформление названия клана: от тусклого серого
+  # на первом уровне до яркого золотого свечения на десятом.
   1:
     exp: 0
     max_members: 10
     color: "&8"
   2:
-    exp: 500
-    max_members: 15
+    exp: 250
+    max_members: 12
     color: "&7"
   3:
-    exp: 1000
-    max_members: 20
-    color: "§x§6§E§C§7§D§E"
+    exp: 750
+    max_members: 15
+    color: "§x§B§0§C§4§D§E"
   4:
-    exp: 1500
-    max_members: 25
-    color: "§x§3§F§D§8§F§F"
+    exp: 1750
+    max_members: 18
+    color: "§x§7§F§D§1§F§0"
   5:
-    exp: 2000
-    max_members: 30
-    color: "§x§3§F§F§F§C§9"
-  6:
-    exp: 2500
-    max_members: 35
-    color: "§x§6§A§F§F§8§0"
-  7:
-    exp: 3000
-    max_members: 40
-    color: "§x§F§F§F§B§5§6"
-  8:
     exp: 3500
-    max_members: 45
-    color: "&6"
+    max_members: 21
+    color: "§x§4§8§D§8§C§8"
+  6:
+    exp: 6000
+    max_members: 25
+    color: "§x§5§C§E§0§7§F"
+  7:
+    exp: 9500
+    max_members: 30
+    color: "§x§C§8§F§0§5§0"
+  8:
+    exp: 14000
+    max_members: 35
+    color: "§x§F§F§D§1§4§0"
   9:
-    exp: 5000
-    max_members: 45
-    color: "&c&l"
+    exp: 20000
+    max_members: 40
+    color: "§x§F§F§8§C§1§A&l"
   10:
-    exp: 7500
+    exp: 30000
     max_members: 45
-    color: "&4&l"
+    color: "§x§F§F§4§D§4§D&l"

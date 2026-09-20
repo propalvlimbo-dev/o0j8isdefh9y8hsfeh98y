@@ -1,37 +1,58 @@
 package ru.rooyzee.elytrixclans.function.impl.shop.object;
 
+import java.util.Collections;
 import java.util.List;
+import ru.rooyzee.elytrixclans.utils.ShopItemMeta;
 
+/**
+ * Позиция магазина.
+ *
+ * Слот больше не задаётся в конфиге: позиции раскладываются по страницам автоматически
+ * в порядке «сначала дешёвые/низкоуровневые». Валюта — монеты Vault.
+ *
+ * Товар может быть:
+ *  - ванильным предметом (material + amount + мета);
+ *  - выдачей чужого плагина через консольные команды (commands), тогда material служит иконкой.
+ */
 public class ShopItem {
 
-    private String name;
-    private String material;
-    private List<String> lore;
-    private int price;
-    private int count;
-    private int slot;
-    private String metaPath;
+    private final String id;
+    private final String name;
+    private final String material;
+    private final List<String> lore;
+    private final double price;
+    private final int amount;
+    private final int requiredLevel;
+    private final List<String> commands;
+    private final ShopItemMeta.Reader meta;
 
-    public ShopItem(String name, String material, List<String> lore, int price, int count, int slot) {
-        this(name, material, lore, price, count, slot, null);
-    }
-
-    public ShopItem(String name, String material, List<String> lore, int price, int count, int slot, String metaPath) {
+    public ShopItem(String id, String name, String material, List<String> lore, double price,
+                    int amount, int requiredLevel, List<String> commands, ShopItemMeta.Reader meta) {
+        this.id = id;
         this.name = name;
         this.material = material;
-        this.lore = lore;
+        this.lore = lore != null ? lore : Collections.<String>emptyList();
         this.price = price;
-        this.count = count;
-        this.slot = slot;
-        this.metaPath = metaPath;
+        this.amount = Math.max(1, amount);
+        this.requiredLevel = Math.max(1, requiredLevel);
+        this.commands = commands != null ? commands : Collections.<String>emptyList();
+        this.meta = meta != null ? meta : ShopItemMeta.empty();
     }
 
+    public String getId() { return id; }
     public String getName() { return name; }
     public String getMaterial() { return material; }
     public List<String> getLore() { return lore; }
-    public int getPrice() { return price; }
-    public int getCount() { return count; }
-    public int getSlot() { return slot; }
-    /** Путь записи в shop_item.yml: оттуда берутся зачарования/эффекты/прочность. */
-    public String getMetaPath() { return metaPath; }
+    public double getPrice() { return price; }
+    public int getAmount() { return amount; }
+    public int getRequiredLevel() { return requiredLevel; }
+
+    /** Консольные команды выдачи (для предметов чужих плагинов). %player% заменяется на ник. */
+    public List<String> getCommands() { return commands; }
+
+    /** Свойства предмета из конфига: зачарования, эффекты, прочность, флаги. */
+    public ShopItemMeta.Reader getMeta() { return meta; }
+
+    /** Товар выдаётся командами, а не предметом из инвентаря витрины. */
+    public boolean isCommandItem() { return !commands.isEmpty(); }
 }

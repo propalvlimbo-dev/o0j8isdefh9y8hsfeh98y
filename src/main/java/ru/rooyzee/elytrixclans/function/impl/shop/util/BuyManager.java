@@ -1,177 +1,175 @@
 package ru.rooyzee.elytrixclans.function.impl.shop.util;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
+import net.milkbowl.vault.economy.Economy;
+import net.milkbowl.vault.economy.EconomyResponse;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
 import ru.rooyzee.elytrixclans.Main;
 import ru.rooyzee.elytrixclans.clans.Clan;
 import ru.rooyzee.elytrixclans.clans.ClanMember;
-import ru.rooyzee.elytrixclans.function.impl.shop.ShopFunction;
-import ru.rooyzee.elytrixclans.function.impl.shop.holder.ThingsInventory;
-import ru.rooyzee.elytrixclans.function.impl.shop.holder.kits.KitPreviewInventory;
-import ru.rooyzee.elytrixclans.function.impl.shop.holder.kits.KitsInventory;
-import ru.rooyzee.elytrixclans.function.impl.shop.holder.things.ShulkerHolder;
-import ru.rooyzee.elytrixclans.function.impl.shop.holder.things.SpawnerHolder;
-import ru.rooyzee.elytrixclans.function.impl.shop.holder.things.ThingsHolder;
+import ru.rooyzee.elytrixclans.function.impl.shop.config.ItemsConfiguration;
 import ru.rooyzee.elytrixclans.function.impl.shop.kit.Kit;
+import ru.rooyzee.elytrixclans.function.impl.shop.object.ShopItem;
+import ru.rooyzee.elytrixclans.hook.impl.VaultHook;
+import ru.rooyzee.elytrixclans.level.Level;
 import ru.rooyzee.elytrixclans.permission.Permissions;
 import ru.rooyzee.elytrixclans.utils.ConfigUtil;
+import ru.rooyzee.elytrixclans.utils.LevelUtil;
 import ru.rooyzee.elytrixclans.utils.MenuUtil;
-import ru.rooyzee.elytrixclans.utils.NBTUtil;
-import ru.rooyzee.elytrixclans.utils.ShopItemMeta;
 
+/**
+ * Покупки в клановом магазине.
+ *
+ * Поинтов больше нет: единственная валюта — монеты экономики Vault, они списываются
+ * с личного счёта покупателя. Клан влияет только на доступность позиции (уровень)
+ * и на право покупать (пермишен SHOP).
+ */
 public class BuyManager {
 
-    public synchronized void buyItem(Player player, ItemStack itemStack) {
-        int price = getPrice(itemStack);
-        if (price <= 0) return;
+    public synchronized void buyItem(Player player, ShopItem shopItem) {
+        if (player == null || shopItem == null) return;
 
-        Clan clan = Main.getInstance().getClanManager().getPlayerClan(player);
+        Clan clan = requireClan(player);
         if (clan == null) return;
+        if (!hasShopPermission(player, clan)) return;
+        if (!hasLevel(player, clan, shopItem.getRequiredLevel())) return;
 
-        ClanMember member = Main.getInstance().getClanManager().getPlayerClanMember(player);
-        if (member == null) return;
+        if (!withdraw(player, shopItem.getPrice())) return;
 
-        if (!member.getRole().getPermissions().contains(Permissions.SHOP)) {
-            ConfigUtil.sendMessage(player, "messages.noPermission", null);
-            return;
-        }
-
-        if (clan.getPoints() < price) {
-            ConfigUtil.sendMessage(player, "messages.notPoints", null);
-            return;
-        }
-
-        Material type = itemStack.getType();
-        // AIR/воздушный предмет из кривого конфига ронял addItem() исключением уже после списания поинтов.
-        if (type == null || type == Material.AIR || type.isAir()) return;
-
-        ItemStack buyedItem = new ItemStack(type);
-        if (buyedItem.getType() == Material.TIPPED_ARROW && getEffect(itemStack) != null
-                && PotionEffectType.getByName(getEffect(itemStack)) != null) {
-            String effect = getEffect(itemStack);
-            PotionMeta sourceMeta = (PotionMeta) itemStack.getItemMeta();
-            PotionMeta meta = (PotionMeta) buyedItem.getItemMeta();
-            if (sourceMeta != null && meta != null) {
-                meta.setColor(PotionEffectType.getByName(effect).getColor());
-                for (PotionEffect pe : sourceMeta.getCustomEffects()) {
-                    meta.addCustomEffect(pe, true);
+        try {
+            if (shopItem.isCommandItem()) {
+                for (String command : shopItem.getCommands()) {
+                    if (command == null || command.trim().isEmpty()) continue;
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
+                            command.replace("%player%", player.getName())
+                                    .replace("%amount%", String.valueOf(shopItem.getAmount())));
                 }
-                meta.setDisplayName(sourceMeta.getDisplayName());
-                buyedItem.setItemMeta(meta);
-            }
-        }
-        // «Какая положил — такая и продаётся»: снима с витринного стака его реальные свойства
-        // (зачарования, эффекты, прочность, флаги) и надеваем на выдаваемый. Имя и лор магазина
-        // покупателю не отдаём — они и раньше не отдавались.
-        try {
-            Map<String, Object> look = new LinkedHashMap<>();
-            ShopItemMeta.write(look, itemStack);
-            ShopItemMeta.apply(buyedItem, ShopItemMeta.of(look));
-        } catch (Exception e) {
-            Main.getInstance().getLogger().warning("Не удалось перенести свойства предмета магазина: " + e.getMessage());
-        }
-        // Количество берём из конфига и ограничиваем стаком материала: стек «на 1000» —
-        // это классический дюп через split/drop и битые предметы в инвентаре.
-        int amount = Math.max(1, itemStack.getAmount());
-        int maxStack = buyedItem.getMaxStackSize();
-        if (maxStack > 0 && amount > maxStack) amount = maxStack;
-        buyedItem.setAmount(amount);
-
-        clan.setPoints(clan.getPoints() - price);
-        try {
-            if (player.getInventory().firstEmpty() == -1) {
-                player.getWorld().dropItemNaturally(player.getLocation(), buyedItem);
             } else {
-                player.getInventory().addItem(buyedItem);
+                giveItem(player, shopItem);
             }
         } catch (Exception e) {
-            // Выдача не удалась — возвращаем поинты, чтобы игрок не заплатил за воздух.
-            clan.setPoints(clan.getPoints() + price);
-            Main.getInstance().getLogger().warning("Не удалось выдать предмет из магазина: " + e.getMessage());
+            // Выдача сорвалась — возвращаем деньги, иначе игрок платит за воздух.
+            deposit(player, shopItem.getPrice());
+            Main.getInstance().getLogger().warning("Не удалось выдать позицию магазина "
+                    + shopItem.getId() + ": " + e.getMessage());
             return;
         }
 
-        updateShopInfo(player);
-        ConfigUtil.sendMessage(player, "messages.buyItem", null);
+        ConfigUtil.sendMessage(player, "messages.buyItem", ConfigUtil.setHolder(
+                new String[]{"%item%", "%price%"},
+                new String[]{shopItem.getName(), MenuUtil.money(shopItem.getPrice())}));
     }
 
     public synchronized void buyKit(Player player, Kit kit) {
-        Clan clan = Main.getInstance().getClanManager().getPlayerClan(player);
+        if (player == null || kit == null) return;
+
+        Clan clan = requireClan(player);
         if (clan == null) return;
+        if (!hasShopPermission(player, clan)) return;
+        if (!hasLevel(player, clan, kit.getRequiredLevel())) return;
 
-        ClanMember member = Main.getInstance().getClanManager().getPlayerClanMember(player);
-        if (member == null) return;
+        if (!withdraw(player, kit.getPrice())) return;
 
-        if (!member.getRole().getPermissions().contains(Permissions.SHOP)) {
-            ConfigUtil.sendMessage(player, "messages.noPermission", null);
-            return;
-        }
-
-        if (clan.getPoints() < kit.getPrice()) {
-            ConfigUtil.sendMessage(player, "messages.notPoints", null);
-            return;
-        }
-
-        clan.setPoints(clan.getPoints() - kit.getPrice());
         try {
             Main.getInstance().getKitManager().giveKit(player, kit);
         } catch (Exception e) {
-            clan.setPoints(clan.getPoints() + kit.getPrice());
-            Main.getInstance().getLogger().warning("Не удалось выдать набор " + kit.getId() + ": " + e.getMessage());
+            deposit(player, kit.getPrice());
+            Main.getInstance().getLogger().warning("Не удалось выдать набор " + kit.getId()
+                    + ": " + e.getMessage());
             return;
         }
-        updateShopInfo(player);
-        ConfigUtil.sendMessage(player, "messages.buyItem", null);
+
+        ConfigUtil.sendMessage(player, "messages.buyItem", ConfigUtil.setHolder(
+                new String[]{"%item%", "%price%"},
+                new String[]{kit.getDisplayName(), MenuUtil.money(kit.getPrice())}));
     }
 
-    private int getPrice(ItemStack itemStack) {
-        if (!NBTUtil.hasItemNBT(itemStack, "shopItem")) return -1;
-        String nbt = NBTUtil.getNBTvalue(itemStack, "shopItem");
-        if (nbt == null || !nbt.startsWith("shopItem_wtf_")) return -1;
+    /** Баланс игрока в монетах Vault (0, если экономики нет). */
+    public double getBalance(Player player) {
+        Economy economy = VaultHook.getEconomy();
+        if (economy == null || player == null) return 0.0;
         try {
-            String[] parts = nbt.split("_wtf_");
-            return Integer.parseInt(parts[3]);
+            return economy.getBalance(player);
         } catch (Exception e) {
-            return -1;
+            return 0.0;
         }
     }
 
-    private String getEffect(ItemStack itemStack) {
-        if (!NBTUtil.hasItemNBT(itemStack, "shopItem")) return null;
-        String nbt = NBTUtil.getNBTvalue(itemStack, "shopItem");
-        if (nbt == null || !nbt.startsWith("shopItem_wtf_")) return null;
+    private void giveItem(Player player, ShopItem shopItem) {
+        ItemStack stack = ItemsConfiguration.buildRawItem(shopItem);
+        if (stack.getType() == Material.AIR) return;
+        // Если количество не влезает в один стак, выдаём несколькими.
+        int left = shopItem.getAmount();
+        int max = Math.max(1, stack.getMaxStackSize());
+        while (left > 0) {
+            ItemStack part = stack.clone();
+            part.setAmount(Math.min(max, left));
+            left -= part.getAmount();
+            if (player.getInventory().firstEmpty() == -1) {
+                player.getWorld().dropItemNaturally(player.getLocation(), part);
+            } else {
+                player.getInventory().addItem(part);
+            }
+        }
+    }
+
+    private Clan requireClan(Player player) {
+        Clan clan = Main.getInstance().getClanManager().getPlayerClan(player);
+        if (clan == null) {
+            ConfigUtil.sendMessage(player, "messages.withoutClan", null);
+        }
+        return clan;
+    }
+
+    private boolean hasShopPermission(Player player, Clan clan) {
+        ClanMember member = Main.getInstance().getClanManager().getMember(clan, player.getName());
+        if (member == null || member.getRole() == null
+                || !member.getRole().getPermissions().contains(Permissions.SHOP)) {
+            ConfigUtil.sendMessage(player, "messages.noPermission", null);
+            return false;
+        }
+        return true;
+    }
+
+    private boolean hasLevel(Player player, Clan clan, int requiredLevel) {
+        Level level = LevelUtil.getClanLevel(clan.getExp());
+        int current = level != null ? level.getLevel() : 1;
+        if (current < requiredLevel) {
+            ConfigUtil.sendMessage(player, "messages.shopLevelLocked", ConfigUtil.setHolder(
+                    new String[]{"%level%"}, new String[]{String.valueOf(requiredLevel)}));
+            return false;
+        }
+        return true;
+    }
+
+    private boolean withdraw(Player player, double price) {
+        if (price <= 0) return true;
+        Economy economy = VaultHook.getEconomy();
+        if (economy == null) {
+            ConfigUtil.sendMessage(player, "messages.noEconomy", null);
+            return false;
+        }
+        if (!economy.has(player, price)) {
+            ConfigUtil.sendMessage(player, "messages.noMoney", null);
+            return false;
+        }
+        EconomyResponse response = economy.withdrawPlayer(player, price);
+        if (response == null || !response.transactionSuccess()) {
+            ConfigUtil.sendMessage(player, "messages.noMoney", null);
+            return false;
+        }
+        return true;
+    }
+
+    private void deposit(Player player, double price) {
+        if (price <= 0) return;
+        Economy economy = VaultHook.getEconomy();
+        if (economy == null) return;
         try {
-            String[] parts = nbt.split("_wtf_");
-            if (parts.length >= 5) return parts[4];
+            economy.depositPlayer(player, price);
         } catch (Exception ignored) {
         }
-        return null;
     }
-
-    private void updateShopInfo(Player player) {
-        Inventory inv = player.getOpenInventory().getTopInventory();
-        InventoryHolder holder = inv.getHolder();
-        if (!isShopHolder(holder)) return;
-        Clan clan = Main.getInstance().getClanManager().getPlayerClan(player);
-        if (clan == null) return;
-        inv.setItem(4, MenuUtil.createInfoItem(String.valueOf(clan.getPoints())));
-    }
-
-    private boolean isShopHolder(InventoryHolder holder) {
-        return holder instanceof ShopFunction
-                || holder instanceof ThingsInventory
-                || holder instanceof ThingsHolder
-                || holder instanceof SpawnerHolder
-                || holder instanceof ShulkerHolder
-                || holder instanceof KitsInventory
-                || holder instanceof KitPreviewInventory;
-    }
-}
+}

@@ -10,12 +10,7 @@ import ru.rooyzee.elytrixclans.function.impl.glow.GlowFunction;
 import ru.rooyzee.elytrixclans.function.impl.info.InfoFunction;
 import ru.rooyzee.elytrixclans.function.impl.info.MemberInventory;
 import ru.rooyzee.elytrixclans.function.impl.shop.ShopFunction;
-import ru.rooyzee.elytrixclans.function.impl.shop.holder.ThingsInventory;
 import ru.rooyzee.elytrixclans.function.impl.shop.holder.kits.KitPreviewInventory;
-import ru.rooyzee.elytrixclans.function.impl.shop.holder.kits.KitsInventory;
-import ru.rooyzee.elytrixclans.function.impl.shop.holder.things.ShulkerHolder;
-import ru.rooyzee.elytrixclans.function.impl.shop.holder.things.SpawnerHolder;
-import ru.rooyzee.elytrixclans.function.impl.shop.holder.things.ThingsHolder;
 
 public class InventoryDragListener implements Listener {
 
@@ -37,13 +32,8 @@ public class InventoryDragListener implements Listener {
     private boolean isMenuHolder(InventoryHolder holder) {
         return holder instanceof InfoFunction
                 || holder instanceof ShopFunction
-                || holder instanceof ThingsInventory
-                || holder instanceof ThingsHolder
-                || holder instanceof SpawnerHolder
-                || holder instanceof ShulkerHolder
                 || holder instanceof GlowFunction
                 || holder instanceof MemberInventory
-                || holder instanceof KitsInventory
                 || holder instanceof KitPreviewInventory;
     }
 }

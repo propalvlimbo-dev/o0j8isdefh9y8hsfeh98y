@@ -53,7 +53,6 @@ public class MemberInventory implements InventoryHolder {
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУ/С: &#F8BEFB" + clanMember.getKDA()));
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fОпыт: &#F8BEFB" + round(clanMember.getLevel())));
-            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fПоинты: &#F8BEFB" + round(clanMember.getPoints())));
             skullMeta.setLore(lore);
             head.setItemMeta(skullMeta);
         }

@@ -12,7 +12,10 @@ import ru.rooyzee.elytrixclans.clans.ClanMember;
 import ru.rooyzee.elytrixclans.permission.Permissions;
 import ru.rooyzee.elytrixclans.role.Roles;
 import ru.rooyzee.elytrixclans.status.Status;
+import ru.rooyzee.elytrixclans.level.Level;
 import ru.rooyzee.elytrixclans.utils.CloseInventoryUtil;
+import ru.rooyzee.elytrixclans.utils.ConfigUtil;
+import ru.rooyzee.elytrixclans.utils.LevelUtil;
 import ru.rooyzee.elytrixclans.utils.ValidatorUtil;
 
 public class ClanManager {
@@ -105,12 +108,22 @@ public class ClanManager {
         if (Main.getInstance().getGlowManager() != null) {
             Main.getInstance().getGlowManager().removeClanColor(clan);
         }
+        // Подсветку снимаем ДО очистки состава: resetGlowForLeaver ходит по memberList,
+        // а после очистки рассылать пакеты уже некому — шлемы «застревали» до перезахода.
+        if (Main.getInstance().getGlowManager() != null) {
+            for (ClanMember member : clan.getMemberList()) {
+                if (member == null) continue;
+                Player online = member.getPlayer();
+                if (online != null && online.isOnline()) {
+                    Main.getInstance().getGlowManager().resetGlowForLeaver(online, clan);
+                }
+            }
+        }
         unindexClan(clan);
         clan.getMemberList().forEach(member -> {
             member.setDeaths(0);
             member.setKDA(0);
             member.setKills(0);
-            member.setPoints(0);
             member.setLevel(0);
             member.setRole(new Roles("Участник"));
         });
@@ -119,17 +132,17 @@ public class ClanManager {
     }
 
     public void createClan(String name, Player owner) {
-        ClanMember ownerMember = new ClanMember(owner.getName(), Status.ONLINE, 0, 0, 1.0, 0, 0,
+        ClanMember ownerMember = new ClanMember(owner.getName(), Status.ONLINE, 0, 1.0, 0, 0,
                 new Roles("Лидер", Permissions.values()));
         CopyOnWriteArrayList<ClanMember> members = new CopyOnWriteArrayList<>();
         members.add(ownerMember);
-        Clan clan = new Clan(0, null, owner.getName(), members, 0, false, false, name);
+        Clan clan = new Clan(0, null, owner.getName(), members, false, false, null, name);
         clans.add(clan);
         indexClan(clan);
     }
 
     public void addPlayer(Clan clan, Player player) {
-        ClanMember member = new ClanMember(player.getName(), Status.ONLINE, 0, 0, 1.0, 0, 0,
+        ClanMember member = new ClanMember(player.getName(), Status.ONLINE, 0, 1.0, 0, 0,
                 new Roles("Участник"));
         clan.getMemberList().add(member);
         byMemberName.put(key(player.getName()), clan);
@@ -145,15 +158,15 @@ public class ClanManager {
         }
         ClanMember member = getPlayerClanMember(player.getName());
         if (member == null) return;
-        double pointsToRemove = Math.min(member.getPoints(), clan.getPoints());
         double expToRemove = Math.min(member.getLevel(), clan.getExp());
-        clan.setPoints(clan.getPoints() - pointsToRemove);
         clan.setExp(clan.getExp() - expToRemove);
+        // Сначала гасим подсветку (игрок ещё числится в клане и пакеты дойдут до обеих сторон),
+        // и только потом убираем его из состава.
+        if (Main.getInstance().getGlowManager() != null && player.isOnline()) {
+            Main.getInstance().getGlowManager().resetGlowForLeaver(player, clan);
+        }
         clan.getMemberList().removeIf(m -> m.getName().equalsIgnoreCase(player.getName()));
         byMemberName.remove(key(player.getName()), clan);
-        if (Main.getInstance().getGlowManager() != null) {
-            Main.getInstance().getGlowManager().resetArmorForEveryone(player);
-        }
     }
 
     public void kickPlayer(Clan clan, ClanMember clanMember) {
@@ -161,15 +174,14 @@ public class ClanManager {
         if (clanMember.getPlayer() != null && clanMember.getPlayer().isOnline()) {
             CloseInventoryUtil.closePlayerMenus(clanMember.getPlayer());
         }
-        double pointsToRemove = Math.min(clanMember.getPoints(), clan.getPoints());
         double expToRemove = Math.min(clanMember.getLevel(), clan.getExp());
-        clan.setPoints(clan.getPoints() - pointsToRemove);
         clan.setExp(clan.getExp() - expToRemove);
+        Player target = clanMember.getPlayer();
+        if (Main.getInstance().getGlowManager() != null && target != null && target.isOnline()) {
+            Main.getInstance().getGlowManager().resetGlowForLeaver(target, clan);
+        }
         clan.getMemberList().removeIf(m -> m.getName().equalsIgnoreCase(clanMember.getName()));
         byMemberName.remove(key(clanMember.getName()), clan);
-        if (Main.getInstance().getGlowManager() != null && clanMember.getPlayer() != null) {
-            Main.getInstance().getGlowManager().resetArmorForEveryone(clanMember.getPlayer());
-        }
     }
 
     public void rebuildIndexes() {
@@ -199,6 +211,61 @@ public class ClanManager {
         for (ClanMember member : clan.getMemberList()) {
             if (member == null || member.getName() == null) continue;
             byMemberName.remove(key(member.getName()), clan);
+        }
+    }
+
+    // --- Опыт клана -----------------------------------------------------------------------
+    // Единая точка начисления: её зовут и убийства игроков, и ивент «Талисман»
+    // (/elytrixclan addexp, а позже — прямой хук в ElytrixTalisman).
+
+    /**
+     * Начисляет клану опыт и, если игрок указан, записывает вклад участнику.
+     * Сам рассылает сообщения о повышении/понижении уровня.
+     *
+     * @return true, если опыт действительно начислен
+     */
+    public boolean addClanExp(Clan clan, double amount, String contributorName) {
+        if (clan == null || amount == 0) return false;
+        Level before = LevelUtil.getClanLevel(clan.getExp());
+        clan.setExp(clan.getExp() + amount);
+        if (contributorName != null) {
+            ClanMember member = getMember(clan, contributorName);
+            if (member != null) {
+                member.setLevel(Math.max(0, member.getLevel() + amount));
+            }
+        }
+        Level after = LevelUtil.getClanLevel(clan.getExp());
+        if (before != null && after != null) {
+            if (before.getLevel() < after.getLevel()) {
+                announceLevel(clan, after, "messages.lvlUp");
+            } else if (before.getLevel() > after.getLevel()) {
+                announceLevel(clan, after, "messages.lvlDown");
+            }
+        }
+        return true;
+    }
+
+    public boolean addClanExp(Clan clan, double amount) {
+        return addClanExp(clan, amount, null);
+    }
+
+    /** Начисление опыта по нику игрока: клан находится сам. */
+    public boolean addExpByPlayer(String playerName, double amount) {
+        Clan clan = getPlayerClan(playerName);
+        if (clan == null) return false;
+        return addClanExp(clan, amount, playerName);
+    }
+
+    private void announceLevel(Clan clan, Level level, String messageKey) {
+        Map<String, String> holder = ConfigUtil.setHolder(
+                new String[]{"%lvl%", "%clan%"},
+                new String[]{String.valueOf(level.getLevel()), String.valueOf(clan.getName())});
+        for (ClanMember member : clan.getMemberList()) {
+            if (member == null) continue;
+            Player online = member.getPlayer();
+            if (online != null && online.isOnline()) {
+                ConfigUtil.sendMessage(online, messageKey, holder);
+            }
         }
     }
 

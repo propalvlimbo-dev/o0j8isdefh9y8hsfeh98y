@@ -65,7 +65,6 @@ public class InfoFunction implements InventoryHolder {
                 lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУ/С: &#F8BEFB" + member.getKDA()));
                 lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
                 lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fОпыт: &#F8BEFB" + round(member.getLevel())));
-                lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fПоинты: &#F8BEFB" + round(member.getPoints())));
                 lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
                 lore.add(HexUtil.translateHexColorCodes("&7● &fНажмите для подробной информации"));
                 meta.setLore(lore);
@@ -88,7 +87,6 @@ public class InfoFunction implements InventoryHolder {
             String needExp = nextLevel != null ? String.valueOf(nextLevel.getExp()) : "&#F8BEFBMAXIMUM";
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУровень: &#F8BEFB" + currentLevel.getLevel()
                     + " &8(&#F8BEFB" + round(clan.getExp()) + "&8/&#F8BEFB" + needExp + "&8)"));
-            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fПоинты: &#F8BEFB" + round(clan.getPoints())));
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУчастники: &#F8BEFB" + clan.getMemberList().size()
                     + "&8/&#F8BEFB" + currentLevel.getMaxMembers()
                     + " &8(&#F8BEFB" + onlineMembers + " &aонлайн&8)"));

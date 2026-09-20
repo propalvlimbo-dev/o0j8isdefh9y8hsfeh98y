@@ -21,13 +21,12 @@ public class ClanMember implements ConfigurationSerializable {
     private int kills;
     private int deaths;
     private double kda;
+    /** Личный вклад участника в опыт клана. */
     private double level;
-    private double points;
 
-    public ClanMember(String name, Status status, double points, double level, double kda, int deaths, int kills, Roles role) {
+    public ClanMember(String name, Status status, double level, double kda, int deaths, int kills, Roles role) {
         this.name = name;
         this.status = status != null ? status : Status.OFFLINE;
-        this.points = Math.max(0, safe(points));
         this.level = Math.max(0, safe(level));
         this.kda = safe(kda);
         this.deaths = Math.max(0, deaths);
@@ -49,14 +48,6 @@ public class ClanMember implements ConfigurationSerializable {
 
     public Status getStatus() {
         return status;
-    }
-
-    public double getPoints() {
-        return points;
-    }
-
-    public void setPoints(double points) {
-        this.points = Math.max(0, safe(points));
     }
 
     public double getLevel() {
@@ -205,7 +196,6 @@ public class ClanMember implements ConfigurationSerializable {
         map.put("deaths", deaths);
         map.put("KDA", kda);
         map.put("level", level);
-        map.put("points", points);
         return map;
     }
 
@@ -237,8 +227,7 @@ public class ClanMember implements ConfigurationSerializable {
         int deaths = number(map.get("deaths"), 0);
         double kda = number(map.get("KDA"), 0.0);
         double level = number(map.get("level"), 0.0);
-        double points = number(map.get("points"), 0.0);
-        return new ClanMember(name, status, points, level, kda, deaths, kills,
+        return new ClanMember(name, status, level, kda, deaths, kills,
                 role != null ? role : new Roles("Участник"));
     }
 
@@ -247,7 +236,7 @@ public class ClanMember implements ConfigurationSerializable {
         if (map == null) return null;
         Object nameObj = map.get("name");
         if (!(nameObj instanceof String) || ((String) nameObj).isEmpty()) return null;
-        return new ClanMember((String) nameObj, Status.OFFLINE, 0, 0, 0, 0, 0, new Roles("Участник"));
+        return new ClanMember((String) nameObj, Status.OFFLINE, 0, 0, 0, 0, new Roles("Участник"));
     }
 
     private static int number(Object value, int def) {

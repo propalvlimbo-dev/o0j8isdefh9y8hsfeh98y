@@ -1,26 +1,25 @@
 package ru.rooyzee.elytrixclans.listener;
 
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.scheduler.BukkitRunnable;
 import ru.rooyzee.elytrixclans.Main;
 import ru.rooyzee.elytrixclans.api.ClanManager;
 import ru.rooyzee.elytrixclans.clans.Clan;
 import ru.rooyzee.elytrixclans.clans.ClanMember;
-import ru.rooyzee.elytrixclans.level.Level;
+import ru.rooyzee.elytrixclans.listener.kill.KillCooldownStorage;
 import ru.rooyzee.elytrixclans.utils.ConfigUtil;
-import ru.rooyzee.elytrixclans.utils.LevelUtil;
 
+/**
+ * Опыт клана за убийство игрока.
+ *
+ * Изменения по сравнению со старой версией:
+ *  - опыт даётся только убийце (+exp-for-kill, по умолчанию 5); жертва больше НЕ теряет опыт;
+ *  - поинтов больше нет вообще;
+ *  - кулдаун повторного убийства той же жертвы (по умолчанию 12 часов) переживает рестарт.
+ */
 public class PlayerDeathListener implements Listener {
-
-    // Ключ — UUID, а не ник: ник игрок может сменить, и «кулдаун» фарма перестанет работать,
-    // а карта начнёт расти за счёт старых имён.
-    private final Map<UUID, UUID> killersMap = new ConcurrentHashMap<>();
 
     @EventHandler
     public void onKillPlayer(PlayerDeathEvent event) {
@@ -29,70 +28,50 @@ public class PlayerDeathListener implements Listener {
         ClanManager clanManager = main.getClanManager();
         if (clanManager == null) return;
 
-        int pointsForKill = main.getConfig().getInt("pointsForKill", 1);
-        int expForKill = main.getConfig().getInt("expForKill", 1);
-        int timeForKillReload = Math.max(1, main.getConfig().getInt("timeForKillReload", 1200));
+        Player victim = event.getEntity();
+        Player killer = victim.getKiller();
 
-        Player player = event.getEntity();
-        Clan targetClan = clanManager.getPlayerClan(player);
-        if (targetClan != null) {
-            processTarget(player, targetClan, clanManager, pointsForKill, expForKill);
-        }
-
-        Player killer = player.getKiller();
-        if (killer == null) return;
-        Clan killerClan = clanManager.getPlayerClan(killer);
-        if (killerClan == null || killerClan == targetClan) return;
-
-        UUID killerId = killer.getUniqueId();
-        UUID victimId = player.getUniqueId();
-
-        if (victimId.equals(killersMap.get(killerId))) return;
-
-        killersMap.put(killerId, victimId);
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                // Снимаем отметку только если с момента фрага её не перезаписали другим убийством.
-                killersMap.remove(killerId, victimId);
+        // Статистика смертей ведётся независимо от опыта.
+        Clan victimClan = clanManager.getPlayerClan(victim);
+        if (victimClan != null) {
+            ClanMember victimMember = clanManager.getMember(victimClan, victim.getName());
+            if (victimMember != null) {
+                victimMember.setDeaths(victimMember.getDeaths() + 1);
+                updateKDA(victimMember);
             }
-        }.runTaskLater(main, timeForKillReload * 20L);
-
-        processKiller(killer, killerClan, clanManager, pointsForKill, expForKill);
-    }
-
-    private void processKiller(Player killer, Clan clan, ClanManager clanManager, int pointsForKill, int expForKill) {
-        ClanMember member = clanManager.getMember(clan, killer.getName());
-        if (member == null) return;
-        Level prevLevel = LevelUtil.getClanLevel(clan.getExp());
-        clan.setExp(clan.getExp() + expForKill);
-        clan.setPoints(clan.getPoints() + pointsForKill);
-        member.setPoints(member.getPoints() + pointsForKill);
-        member.setLevel(member.getLevel() + expForKill);
-        member.setKills(member.getKills() + 1);
-        updateKDA(member);
-        Level newLevel = LevelUtil.getClanLevel(clan.getExp());
-        if (prevLevel != null && newLevel != null && prevLevel.getLevel() < newLevel.getLevel()) {
-            notifyMembers(clan, newLevel, "messages.lvlUp");
         }
-    }
 
-    private void processTarget(Player player, Clan clan, ClanManager clanManager, int pointsForKill, int expForKill) {
-        ClanMember member = clanManager.getMember(clan, player.getName());
-        if (member == null) return;
-        Level prevLevel = LevelUtil.getClanLevel(clan.getExp());
-        double newExp = Math.max(0, clan.getExp() - expForKill);
-        double newPoints = Math.max(0, clan.getPoints() - pointsForKill);
-        clan.setExp(newExp);
-        clan.setPoints(newPoints);
-        member.setPoints(Math.max(0, member.getPoints() - pointsForKill));
-        member.setLevel(Math.max(0, member.getLevel() - expForKill));
-        member.setDeaths(member.getDeaths() + 1);
-        updateKDA(member);
-        Level newLevel = LevelUtil.getClanLevel(clan.getExp());
-        if (prevLevel != null && newLevel != null && prevLevel.getLevel() > newLevel.getLevel()) {
-            notifyMembers(clan, newLevel, "messages.lvlDown");
+        if (killer == null || killer.equals(victim)) return;
+        Clan killerClan = clanManager.getPlayerClan(killer);
+        if (killerClan == null) return;
+
+        ClanMember killerMember = clanManager.getMember(killerClan, killer.getName());
+        if (killerMember != null) {
+            killerMember.setKills(killerMember.getKills() + 1);
+            updateKDA(killerMember);
         }
+
+        // Убийство своего же соклановца опыта не приносит.
+        if (killerClan == victimClan) return;
+
+        double expForKill = main.getConfig().getDouble("exp-for-kill", 5.0);
+        if (expForKill <= 0) return;
+
+        long cooldownMillis = Math.max(0L, main.getConfig().getLong("kill-exp-cooldown-hours", 12L)) * 3600_000L;
+        KillCooldownStorage cooldowns = main.getKillCooldownStorage();
+        if (cooldowns != null
+                && !cooldowns.tryRegisterKill(killer.getUniqueId(), victim.getUniqueId(), cooldownMillis)) {
+            long left = cooldowns.remaining(killer.getUniqueId(), victim.getUniqueId());
+            ConfigUtil.sendMessage(killer, "messages.killCooldown", ConfigUtil.setHolder(
+                    new String[]{"%player%", "%time%"},
+                    new String[]{victim.getName(), formatTime(left)}));
+            return;
+        }
+
+        clanManager.addClanExp(killerClan, expForKill, killer.getName());
+        ConfigUtil.sendMessage(killer, "messages.expForKill", ConfigUtil.setHolder(
+                new String[]{"%player%", "%exp%"},
+                new String[]{victim.getName(), trim(expForKill)}));
     }
 
     private void updateKDA(ClanMember member) {
@@ -103,12 +82,19 @@ public class PlayerDeathListener implements Listener {
         }
     }
 
-    private void notifyMembers(Clan clan, Level level, String messageKey) {
-        for (ClanMember member : clan.getMemberList()) {
-            if (member.getPlayer() != null && member.getPlayer().isOnline()) {
-                ConfigUtil.sendMessage(member.getPlayer(), messageKey,
-                        ConfigUtil.setHolder(new String[]{"%lvl%"}, new String[]{String.valueOf(level.getLevel())}));
-            }
+    private static String formatTime(long millis) {
+        long totalMinutes = Math.max(0L, millis) / 60_000L;
+        long hours = totalMinutes / 60;
+        long minutes = totalMinutes % 60;
+        if (hours > 0) return hours + "ч " + minutes + "м";
+        if (minutes > 0) return minutes + "м";
+        return "меньше минуты";
+    }
+
+    private static String trim(double value) {
+        if (value == Math.floor(value) && !Double.isInfinite(value)) {
+            return String.valueOf((long) value);
         }
+        return String.valueOf(value);
     }
 }

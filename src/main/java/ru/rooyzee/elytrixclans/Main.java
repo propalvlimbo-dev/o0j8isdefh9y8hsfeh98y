@@ -12,7 +12,6 @@ import ru.rooyzee.elytrixclans.database.impl.YAMLDataBase;
 import ru.rooyzee.elytrixclans.function.impl.glow.GlowManager;
 import ru.rooyzee.elytrixclans.function.impl.glow.GlowPacketListener;
 import ru.rooyzee.elytrixclans.function.impl.shop.config.ItemsConfiguration;
-import ru.rooyzee.elytrixclans.function.impl.shop.config.ShopMenuConfiguration;
 import ru.rooyzee.elytrixclans.function.impl.shop.kit.KitManager;
 import ru.rooyzee.elytrixclans.function.impl.shop.util.BuyManager;
 import ru.rooyzee.elytrixclans.hook.IHook;
@@ -22,15 +21,13 @@ import ru.rooyzee.elytrixclans.hook.impl.PLibHook;
 import ru.rooyzee.elytrixclans.hook.impl.VaultHook;
 import ru.rooyzee.elytrixclans.level.config.LevelConfiguration;
 import ru.rooyzee.elytrixclans.listener.ArmorUpdateListener;
-import ru.rooyzee.elytrixclans.listener.BlockBreakListener;
 import ru.rooyzee.elytrixclans.listener.DisbandChatListener;
 import ru.rooyzee.elytrixclans.listener.InventoryClickListener;
 import ru.rooyzee.elytrixclans.listener.InventoryDragListener;
 import ru.rooyzee.elytrixclans.listener.InviteListener;
-import ru.rooyzee.elytrixclans.listener.MobKillListener;
 import ru.rooyzee.elytrixclans.listener.PlayerDeathListener;
 import ru.rooyzee.elytrixclans.listener.PvpListener;
-import ru.rooyzee.elytrixclans.listener.ShopEditListener;
+import ru.rooyzee.elytrixclans.listener.kill.KillCooldownStorage;
 import ru.rooyzee.elytrixclans.placeholder.ClanPlaceholder;
 import ru.rooyzee.elytrixclans.utils.CloseInventoryUtil;
 import ru.rooyzee.elytrixclans.utils.PlayerHeadCache;
@@ -41,11 +38,11 @@ public final class Main extends JavaPlugin {
     private IDataBase dataBase;
     private ClanManager clanManager;
     private ItemsConfiguration itemsConfiguration;
-    private ShopMenuConfiguration shopMenuConfiguration;
     private LevelConfiguration levelConfiguration;
     private GlowManager glowManager;
     private KitManager kitManager;
     private BuyManager buyManager;
+    private KillCooldownStorage killCooldownStorage;
     private int autoSaveTaskId = -1;
 
     @Override
@@ -57,17 +54,16 @@ public final class Main extends JavaPlugin {
 
         saveDefaultConfig();
         saveResource("levels.yml", false);
-        saveResource("shop/shop_menu.yml", false);
         saveResource("shop/shop_item.yml", false);
 
         itemsConfiguration = new ItemsConfiguration();
-        shopMenuConfiguration = new ShopMenuConfiguration();
         levelConfiguration = new LevelConfiguration(this);
         kitManager = new KitManager();
         buyManager = new BuyManager();
         clanManager = new ClanManager();
         dataBase = new YAMLDataBase();
         dataBase.connect();
+        killCooldownStorage = new KillCooldownStorage(this);
 
         if (VaultHook.getEconomy() == null) {
             getLogger().warning("Экономика через Vault не найдена: /clan create не сможет списать деньги.");
@@ -79,6 +75,9 @@ public final class Main extends JavaPlugin {
         try {
             glowManager = new GlowManager();
             ProtocolLibrary.getProtocolManager().addPacketListener(new GlowPacketListener());
+            // Цвет подсветки хранится в clans.yml — возвращаем его в память после загрузки базы,
+            // иначе после рестарта у кланов с glow=true не было цвета и шлемы не красились.
+            glowManager.restoreFromStorage();
         } catch (Throwable t) {
             glowManager = null;
             getLogger().warning("ProtocolLib отсутствует. Подсветка союзников недоступна.");
@@ -115,18 +114,14 @@ public final class Main extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new InventoryClickListener(), this);
         Bukkit.getPluginManager().registerEvents(new InventoryDragListener(), this);
         Bukkit.getPluginManager().registerEvents(new InviteListener(), this);
-        Bukkit.getPluginManager().registerEvents(new MobKillListener(), this);
         Bukkit.getPluginManager().registerEvents(new PlayerDeathListener(), this);
-        Bukkit.getPluginManager().registerEvents(new BlockBreakListener(), this);
         Bukkit.getPluginManager().registerEvents(new PvpListener(), this);
         Bukkit.getPluginManager().registerEvents(new DisbandChatListener(), this);
         Bukkit.getPluginManager().registerEvents(new ArmorUpdateListener(), this);
-        Bukkit.getPluginManager().registerEvents(new ShopEditListener(), this);
 
         getLogger().info("ElytrixClans loaded successfully");
-        // Маркер сборки: если его нет в логе запуска, jar не обновился (редактор магазина
-        // с переносом зачарований/эффектов появился в этой сборке).
-        getLogger().info("Shop editor build 2026-09-05: /elytrixclan edit, перенос чар, эффектов и прочности");
+        // Маркер сборки: если его нет в логе запуска, jar не обновился.
+        getLogger().info("Build 2026-09-20: магазин на монетах Vault, опыт только за PvP и Талисман");
     }
 
     @Override
@@ -134,6 +129,7 @@ public final class Main extends JavaPlugin {
         if (autoSaveTaskId != -1) Bukkit.getScheduler().cancelTask(autoSaveTaskId);
         CloseInventoryUtil.closeAllMenus();
         if (glowManager != null) glowManager.removeAllGlow();
+        if (killCooldownStorage != null) killCooldownStorage.shutdown();
         PlayerHeadCache.shutdown();
         if (dataBase != null) {
             try {
@@ -152,13 +148,9 @@ public final class Main extends JavaPlugin {
      * config.yml, levels.yml и shop_item.yml — правки меню магазина и наборов не применялись.
      */
     public void reloadEverything() {
-        // Открытые редакторы держат старый снимок конфига — закрываем их без сохранения,
-        // иначе правки из открытого окна перезаписали бы перечитанный файл.
-        ShopEditListener.discardOpenEditors();
         reloadConfig();
         if (levelConfiguration != null) levelConfiguration.reloadYml();
         if (itemsConfiguration != null) itemsConfiguration.reloadYml();
-        if (shopMenuConfiguration != null) shopMenuConfiguration.reload();
         if (kitManager != null) kitManager.load();
         if (clanManager != null) clanManager.rebuildIndexes();
     }
@@ -166,11 +158,11 @@ public final class Main extends JavaPlugin {
     public static Main getInstance() { return INSTANCE; }
     public ClanManager getClanManager() { return clanManager; }
     public ItemsConfiguration getItemsConfiguration() { return itemsConfiguration; }
-    public ShopMenuConfiguration getShopMenuConfiguration() { return shopMenuConfiguration; }
     public LevelConfiguration getLevelConfiguration() { return levelConfiguration; }
     public IDataBase getDataBase() { return dataBase; }
     public GlowManager getGlowManager() { return glowManager; }
     public KitManager getKitManager() { return kitManager; }
     public BuyManager getBuyManager() { return buyManager; }
+    public KillCooldownStorage getKillCooldownStorage() { return killCooldownStorage; }
     public void saveData() { if (dataBase != null) dataBase.save(); }
 }

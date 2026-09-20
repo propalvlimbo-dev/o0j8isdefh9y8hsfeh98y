@@ -1,30 +1,38 @@
 package ru.rooyzee.elytrixclans.function.impl.shop.kit;
 
+import java.util.Collections;
 import java.util.List;
 import org.bukkit.inventory.ItemStack;
 
+/** Набор предметов. Цена в монетах Vault, доступность — по уровню клана. */
 public class Kit {
 
     private final String id;
     private final String displayName;
     private final String iconMaterial;
-    private final int slot;
-    private final int price;
+    private final double price;
+    private final int requiredLevel;
     private final List<ItemStack> items;
+    private final List<String> commands;
 
-    public Kit(String id, String displayName, String iconMaterial, int slot, int price, List<ItemStack> items) {
+    public Kit(String id, String displayName, String iconMaterial, double price, int requiredLevel,
+               List<ItemStack> items, List<String> commands) {
         this.id = id;
         this.displayName = displayName;
         this.iconMaterial = iconMaterial;
-        this.slot = slot;
         this.price = price;
-        this.items = items;
+        this.requiredLevel = Math.max(1, requiredLevel);
+        this.items = items != null ? items : Collections.<ItemStack>emptyList();
+        this.commands = commands != null ? commands : Collections.<String>emptyList();
     }
 
     public String getId() { return id; }
     public String getDisplayName() { return displayName; }
     public String getIconMaterial() { return iconMaterial; }
-    public int getSlot() { return slot; }
-    public int getPrice() { return price; }
+    public double getPrice() { return price; }
+    public int getRequiredLevel() { return requiredLevel; }
     public List<ItemStack> getItems() { return items; }
+
+    /** Дополнительные консольные команды выдачи (предметы чужих плагинов). */
+    public List<String> getCommands() { return commands; }
 }

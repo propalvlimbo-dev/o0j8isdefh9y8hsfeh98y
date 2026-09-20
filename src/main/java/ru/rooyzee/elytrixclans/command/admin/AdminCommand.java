@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -11,10 +12,18 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import ru.rooyzee.elytrixclans.Main;
 import ru.rooyzee.elytrixclans.clans.Clan;
-import ru.rooyzee.elytrixclans.function.impl.shop.admin.EditMenuInventory;
 import ru.rooyzee.elytrixclans.utils.ConfigUtil;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
 
+/**
+ * Админ-команды.
+ *
+ * Редактор магазина (/elytrixclan edit) убран: ассортимент настраивается только через
+ * shop/shop_item.yml + /elytrixclan reload.
+ *
+ * /elytrixclan addexp — публичная точка начисления опыта для внешних плагинов (ивент
+ * «Талисман» дергает её командой от консоли, пока нет прямого хука).
+ */
 public class AdminCommand implements CommandExecutor, TabCompleter {
 
     @Override
@@ -31,22 +40,12 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
 
         String sub = args[0].toLowerCase(Locale.ROOT);
 
-        if (sub.equals("edit")) return handleEdit(sender);
-        else if (sub.equals("reload")) return handleReload(sender);
+        if (sub.equals("reload")) return handleReload(sender);
         else if (sub.equals("set")) return handleSet(sender, args);
         else if (sub.equals("remove")) return handleRemove(sender, args);
+        else if (sub.equals("addexp")) return handleAddExp(sender, args);
 
         usage(sender);
-        return false;
-    }
-
-    private boolean handleEdit(CommandSender sender) {
-        if (!(sender instanceof Player)) {
-            sender.sendMessage(HexUtil.translateHexColorCodes("&f☁ &7» &cРедактор магазина доступен только из игры"));
-            return false;
-        }
-        Player player = (Player) sender;
-        player.openInventory(new EditMenuInventory(player).getInventory());
         return false;
     }
 
@@ -73,10 +72,49 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
             usage(sender);
             return false;
         }
-        String type = args[2].toLowerCase(Locale.ROOT);
-        if (type.equals("points")) clan.setPoints(value);
-        else if (type.equals("exp")) clan.setExp(value);
-        else usage(sender);
+        if (args[2].equalsIgnoreCase("exp")) {
+            clan.setExp(value);
+            sender.sendMessage(HexUtil.translateHexColorCodes("&f☁ &7» &aОпыт клана "
+                    + clan.getName() + " установлен: &f" + value));
+        } else {
+            usage(sender);
+        }
+        return false;
+    }
+
+    /**
+     * /elytrixclan addexp &lt;клан|игрок&gt; &lt;число&gt; [player]
+     *
+     * Без третьего аргумента первый параметр — название клана. С «player» — ник игрока,
+     * клан ищется по нему, а опыт дополнительно записывается в личный вклад участника.
+     */
+    private boolean handleAddExp(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            usage(sender);
+            return false;
+        }
+        double amount;
+        try {
+            amount = Double.parseDouble(args[2]);
+        } catch (NumberFormatException e) {
+            ConfigUtil.sendMessage(sender, "messages.uncorrectNumber", null);
+            return false;
+        }
+
+        boolean byPlayer = args.length >= 4 && args[3].equalsIgnoreCase("player");
+        boolean ok;
+        if (byPlayer) {
+            ok = Main.getInstance().getClanManager().addExpByPlayer(args[1], amount);
+        } else {
+            Clan clan = Main.getInstance().getClanManager().getClanByName(args[1]);
+            ok = clan != null && Main.getInstance().getClanManager().addClanExp(clan, amount);
+        }
+
+        if (!ok) {
+            sender.sendMessage(HexUtil.translateHexColorCodes("&f☁ &7» &cКлан не найден"));
+            return false;
+        }
+        sender.sendMessage(HexUtil.translateHexColorCodes("&f☁ &7» &aОпыт начислен: &f" + amount));
         return false;
     }
 
@@ -95,28 +133,37 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
     }
 
     private void usage(CommandSender sender) {
-        sender.sendMessage(HexUtil.translateHexColorCodes("&c/" + "elytrixclan set <clan> <points|exp> <n>"));
+        sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan set <clan> exp <n>"));
+        sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan addexp <clan> <n>"));
+        sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan addexp <player> <n> player"));
         sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan remove <clan>"));
         sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan reload"));
-        sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan edit &7— редактор предметов и наборов магазина"));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return filter(Arrays.asList("set", "remove", "reload", "edit"), args[0]);
+            return filter(Arrays.asList("set", "remove", "reload", "addexp"), args[0]);
         }
         if (args.length == 2) {
-            List<String> clans = new ArrayList<>();
+            List<String> options = new ArrayList<>();
             if (Main.getInstance().getClanManager() != null) {
                 for (Clan clan : Main.getInstance().getClanManager().getClans()) {
-                    clans.add(clan.getName());
+                    options.add(clan.getName());
                 }
             }
-            return filter(clans, args[1]);
+            if (args[0].equalsIgnoreCase("addexp")) {
+                for (Player online : Bukkit.getOnlinePlayers()) {
+                    options.add(online.getName());
+                }
+            }
+            return filter(options, args[1]);
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("set")) {
-            return filter(Arrays.asList("points", "exp"), args[2]);
+            return filter(Arrays.asList("exp"), args[2]);
+        }
+        if (args.length == 4 && args[0].equalsIgnoreCase("addexp")) {
+            return filter(Arrays.asList("player"), args[3]);
         }
         return new ArrayList<>();
     }

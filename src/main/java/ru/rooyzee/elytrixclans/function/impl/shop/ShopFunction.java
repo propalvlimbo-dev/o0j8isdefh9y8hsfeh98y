@@ -1,57 +1,239 @@
 package ru.rooyzee.elytrixclans.function.impl.shop;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import ru.rooyzee.elytrixclans.Main;
 import ru.rooyzee.elytrixclans.clans.Clan;
-import ru.rooyzee.elytrixclans.function.impl.shop.config.ShopMenuConfiguration;
-import ru.rooyzee.elytrixclans.function.impl.shop.holder.ThingsInventory;
-import ru.rooyzee.elytrixclans.function.impl.shop.holder.kits.KitsInventory;
+import ru.rooyzee.elytrixclans.function.impl.shop.config.ItemsConfiguration;
+import ru.rooyzee.elytrixclans.function.impl.shop.holder.kits.KitPreviewInventory;
+import ru.rooyzee.elytrixclans.function.impl.shop.kit.Kit;
+import ru.rooyzee.elytrixclans.function.impl.shop.object.ShopItem;
+import ru.rooyzee.elytrixclans.level.Level;
+import ru.rooyzee.elytrixclans.utils.HexUtil;
+import ru.rooyzee.elytrixclans.utils.LevelUtil;
 import ru.rooyzee.elytrixclans.utils.MenuUtil;
 import ru.rooyzee.elytrixclans.utils.NBTUtil;
 
+/**
+ * Витрина магазина: /clan shop открывает сразу товары, без промежуточного меню категорий.
+ *
+ * Раскладка 54 слота: товары в слотах контента, ряды-рамки заняты стеклом
+ * (кроме слотов 10, 16, 37, 43 — они отданы под товар), слот 52 — предыдущая страница,
+ * слот 53 — следующая страница.
+ *
+ * Наборы показываются в конце ассортимента отдельными шалкерами: клик по такому предмету
+ * (любой кнопкой) открывает меню предпросмотра набора.
+ */
 public class ShopFunction implements InventoryHolder {
 
+    public static final String NBT_PAGE = "clanShopPage";
+    public static final String NBT_KIT = "clanShopKit";
+
+    /** Слоты под товар. 10, 16, 37 и 43 добавлены сюда — стекла там больше нет. */
+    public static final int[] CONTENT_SLOTS = {
+            10, 11, 12, 13, 14, 15, 16,
+            19, 20, 21, 22, 23, 24, 25,
+            28, 29, 30, 31, 32, 33, 34,
+            37, 38, 39, 40, 41, 42, 43
+    };
+
+    private static final int PREV_PAGE_SLOT = 52;
+    private static final int NEXT_PAGE_SLOT = 53;
+
     private final Inventory inventory;
+    private final int page;
 
     public ShopFunction(Player player) {
-        String title = Main.getInstance().getShopMenuConfiguration().getTitle("main");
-        inventory = Bukkit.createInventory(this, 54, title);
+        this(player, 0);
+    }
+
+    public ShopFunction(Player player, int page) {
+        List<Object> entries = collectEntries();
+        int pages = Math.max(1, (int) Math.ceil(entries.size() / (double) CONTENT_SLOTS.length));
+        // Страницу нормализуем, чтобы «вперёд» с последней страницы не открывало пустое меню.
+        if (page < 0) page = 0;
+        if (page >= pages) page = pages - 1;
+        this.page = page;
+
+        inventory = Bukkit.createInventory(this, 54, HexUtil.translateHexColorCodes(
+                "&#F8BEFB&lМагазин клана &7(" + (page + 1) + "/" + pages + ")"));
 
         MenuUtil.applyLayout(inventory);
-
-        for (ShopMenuConfiguration.CategoryButton btn : Main.getInstance().getShopMenuConfiguration().getButtons("main")) {
-            inventory.setItem(btn.getSlot(), btn.getItem());
-        }
+        // Слоты 10, 16, 37 и 43 по требованию отданы под товар — стекла там нет.
+        MenuUtil.clearShopFreedSlots(inventory);
 
         Clan clan = Main.getInstance().getClanManager().getPlayerClan(player);
-        String points = clan != null ? String.valueOf(clan.getPoints()) : "0";
-        inventory.setItem(4, MenuUtil.createInfoItem(points));
+        int clanLevel = clanLevel(clan);
+        double balance = Main.getInstance().getBuyManager().getBalance(player);
+
+        int from = page * CONTENT_SLOTS.length;
+        for (int i = 0; i < CONTENT_SLOTS.length; i++) {
+            int index = from + i;
+            if (index >= entries.size()) break;
+            Object entry = entries.get(index);
+            if (entry instanceof ShopItem) {
+                inventory.setItem(CONTENT_SLOTS[i], buildItemIcon((ShopItem) entry, clanLevel));
+            } else if (entry instanceof Kit) {
+                inventory.setItem(CONTENT_SLOTS[i], buildKitIcon((Kit) entry, clanLevel));
+            }
+        }
+
+        inventory.setItem(4, MenuUtil.createInfoItem(clan, balance));
         inventory.setItem(45, MenuUtil.createCloseButton());
+        if (page > 0) {
+            inventory.setItem(PREV_PAGE_SLOT, pageButton(false, page));
+        }
+        if (page < pages - 1) {
+            inventory.setItem(NEXT_PAGE_SLOT, pageButton(true, page));
+        }
+    }
+
+    /** Ассортимент витрины: сначала товары, затем наборы. */
+    private static List<Object> collectEntries() {
+        List<Object> entries = new ArrayList<>();
+        ItemsConfiguration config = Main.getInstance().getItemsConfiguration();
+        if (config != null) entries.addAll(config.getItems());
+        if (Main.getInstance().getKitManager() != null) {
+            entries.addAll(Main.getInstance().getKitManager().getKits());
+        }
+        return entries;
+    }
+
+    private static int clanLevel(Clan clan) {
+        if (clan == null) return 0;
+        Level level = LevelUtil.getClanLevel(clan.getExp());
+        return level != null ? level.getLevel() : 1;
+    }
+
+    private ItemStack buildItemIcon(ShopItem shopItem, int clanLevel) {
+        boolean locked = clanLevel < shopItem.getRequiredLevel();
+        List<String> lore = new ArrayList<>();
+        lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
+        for (String line : shopItem.getLore()) {
+            lore.add(line);
+        }
+        if (!shopItem.getLore().isEmpty()) {
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
+        }
+        lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fКоличество: &#F8BEFB" + shopItem.getAmount()));
+        lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСтоимость: &#F8BEFB"
+                + MenuUtil.money(shopItem.getPrice()) + " монет"));
+        lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fТребуется уровень: &#F8BEFB"
+                + shopItem.getRequiredLevel()));
+        lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
+        lore.add(locked
+                ? HexUtil.translateHexColorCodes("&c● Недоступно: поднимите уровень клана")
+                : HexUtil.translateHexColorCodes("&7● &fНажмите для покупки"));
+
+        if (locked) {
+            // Заблокированную позицию показываем «серым камнем», чтобы не раскрывать её вид
+            // и чтобы клик по ней не путали с доступной покупкой.
+            ItemStack stack = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+            ItemMeta meta = stack.getItemMeta();
+            if (meta != null) {
+                meta.setDisplayName(shopItem.getName());
+                meta.setLore(lore);
+                stack.setItemMeta(meta);
+            }
+            NBTUtil.addItemNBT(stack, ItemsConfiguration.NBT_SHOP_ITEM, shopItem.getId());
+            return stack;
+        }
+        return ItemsConfiguration.buildDisplayItem(shopItem, lore);
+    }
+
+    private ItemStack buildKitIcon(Kit kit, int clanLevel) {
+        boolean locked = clanLevel < kit.getRequiredLevel();
+        Material material = Material.matchMaterial(kit.getIconMaterial());
+        if (material == null) material = Material.SHULKER_BOX;
+        ItemStack stack = new ItemStack(locked ? Material.GRAY_STAINED_GLASS_PANE : material);
+        ItemMeta meta = stack.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(kit.getDisplayName());
+            List<String> lore = new ArrayList<>();
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fНабор предметов: &#F8BEFB"
+                    + kit.getItems().size() + " шт."));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСтоимость: &#F8BEFB"
+                    + MenuUtil.money(kit.getPrice()) + " монет"));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fТребуется уровень: &#F8BEFB"
+                    + kit.getRequiredLevel()));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
+            lore.add(locked
+                    ? HexUtil.translateHexColorCodes("&c● Недоступно: поднимите уровень клана")
+                    : HexUtil.translateHexColorCodes("&7● &fНажмите, чтобы посмотреть состав"));
+            meta.setLore(lore);
+            stack.setItemMeta(meta);
+        }
+        NBTUtil.addItemNBT(stack, NBT_KIT, kit.getId());
+        return stack;
+    }
+
+    private ItemStack pageButton(boolean next, int currentPage) {
+        ItemStack item = new ItemStack(next ? Material.LIME_DYE : Material.BLACK_DYE);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(HexUtil.translateHexColorCodes(next
+                    ? "&7« &#F8BEFBСледующая страница &7»"
+                    : "&7« &#F8BEFBПредыдущая страница &7»"));
+            meta.setLore(Collections.singletonList(
+                    HexUtil.translateHexColorCodes("&7● &fНажмите для перехода")));
+            item.setItemMeta(meta);
+        }
+        NBTUtil.addItemNBT(item, NBT_PAGE, String.valueOf(next ? currentPage + 1 : currentPage - 1));
+        return item;
     }
 
     public void onInventoryClick(InventoryClickEvent event) {
         event.setCancelled(true);
-        if (event.getCurrentItem() == null || !(event.getWhoClicked() instanceof Player)) return;
-        Player player = (Player) event.getWhoClicked();
         ItemStack item = event.getCurrentItem();
+        if (item == null || !(event.getWhoClicked() instanceof Player)) return;
+        Player player = (Player) event.getWhoClicked();
 
-        if (!NBTUtil.hasItemNBT(item, "shop_action")) return;
-        String action = NBTUtil.getNBTvalue(item, "shop_action");
-        if (action == null) return;
-
-        switch (action.toLowerCase()) {
-            case "things":
-                player.openInventory(new ThingsInventory(player).getInventory());
-                break;
-            case "kits":
-                player.openInventory(new KitsInventory(player).getInventory());
-                break;
+        if (NBTUtil.hasItemNBT(item, NBT_PAGE)) {
+            int target = parseInt(NBTUtil.getNBTvalue(item, NBT_PAGE), this.page);
+            player.openInventory(new ShopFunction(player, target).getInventory());
+            return;
         }
+
+        if (NBTUtil.hasItemNBT(item, NBT_KIT)) {
+            // ЛКМ и ПКМ одинаково открывают предпросмотр набора.
+            String kitId = NBTUtil.getNBTvalue(item, NBT_KIT);
+            Kit kit = Main.getInstance().getKitManager().getKit(kitId);
+            if (kit == null) return;
+            player.openInventory(new KitPreviewInventory(player, kit, this.page).getInventory());
+            return;
+        }
+
+        if (NBTUtil.hasItemNBT(item, ItemsConfiguration.NBT_SHOP_ITEM)) {
+            String id = NBTUtil.getNBTvalue(item, ItemsConfiguration.NBT_SHOP_ITEM);
+            ShopItem shopItem = Main.getInstance().getItemsConfiguration().getItem(id);
+            if (shopItem == null) return;
+            Main.getInstance().getBuyManager().buyItem(player, shopItem);
+            // Обновляем страницу: изменился баланс, а с новым уровнем могли открыться позиции.
+            player.openInventory(new ShopFunction(player, this.page).getInventory());
+        }
+    }
+
+    private static int parseInt(String raw, int def) {
+        if (raw == null) return def;
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException e) {
+            return def;
+        }
+    }
+
+    public int getPage() {
+        return page;
     }
 
     @Override

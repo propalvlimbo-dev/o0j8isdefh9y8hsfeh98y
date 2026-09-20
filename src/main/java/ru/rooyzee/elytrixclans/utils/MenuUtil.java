@@ -1,12 +1,17 @@
 package ru.rooyzee.elytrixclans.utils;
 
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import ru.rooyzee.elytrixclans.clans.Clan;
+import ru.rooyzee.elytrixclans.level.Level;
 
 public class MenuUtil {
 
@@ -20,6 +25,33 @@ public class MenuUtil {
             36, 37, 43, 44,
             46, 47, 48, 49, 50, 51, 52, 53
     };
+
+    /**
+     * Слоты, которые магазин освобождает от стекла под товар.
+     * В остальных меню рамка остаётся прежней.
+     */
+    public static final int[] SHOP_FREED_SLOTS = {10, 16, 37, 43};
+
+    /** Убирает стекло со слотов витрины магазина. */
+    public static void clearShopFreedSlots(Inventory inventory) {
+        for (int slot : SHOP_FREED_SLOTS) {
+            if (slot < inventory.getSize()) inventory.setItem(slot, null);
+        }
+    }
+
+    private static final ThreadLocal<DecimalFormat> MONEY_FORMAT = new ThreadLocal<DecimalFormat>() {
+        @Override
+        protected DecimalFormat initialValue() {
+            DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.ROOT);
+            symbols.setGroupingSeparator(' ');
+            return new DecimalFormat("#,##0.##", symbols);
+        }
+    };
+
+    /** Человекочитаемая сумма монет: 1 250 000, 99.5 и т.п. */
+    public static String money(double value) {
+        return MONEY_FORMAT.get().format(value);
+    }
 
     public static void applyLayout(Inventory inventory) {
         ItemStack blackPane = createPane(Material.BLACK_STAINED_GLASS_PANE);
@@ -77,14 +109,24 @@ public class MenuUtil {
         return item;
     }
 
-    public static ItemStack createInfoItem(String pointsStr) {
+    /**
+     * Шапка меню магазина: баланс покупателя в монетах Vault, уровень и опыт клана.
+     * Поинтов в плагине больше нет — валюта одна, обычные монеты.
+     */
+    public static ItemStack createInfoItem(Clan clan, double balance) {
         ItemStack item = new ItemStack(Material.CLOCK);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(HexUtil.translateHexColorCodes("&7« &#F8BEFBИнформация &7»"));
             List<String> lore = new ArrayList<>();
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
-            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fПоинты клана: &#F8BEFB" + pointsStr));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fВаш баланс: &#F8BEFB" + money(balance) + " монет"));
+            if (clan != null) {
+                Level level = LevelUtil.getClanLevel(clan.getExp());
+                int levelNumber = level != null ? level.getLevel() : 1;
+                lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУровень клана: &#F8BEFB" + levelNumber));
+                lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fОпыт клана: &#F8BEFB" + money(clan.getExp())));
+            }
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
             meta.setLore(lore);
             item.setItemMeta(meta);
