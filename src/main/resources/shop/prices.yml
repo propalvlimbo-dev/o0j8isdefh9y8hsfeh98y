@@ -1,4 +1,4 @@
-# Цены кланового магазина — отдельный короткий файл, чтобы не искать их в shop_item.yml.
+# Цены кланового магазина — отдельный короткий файл.
 #
 # Формат: <id позиции>: <цена в монетах>. Id совпадает с ключом в shop_item.yml.
 # Значение отсюда ПЕРЕОПРЕДЕЛЯЕТ цену из shop_item.yml.
@@ -9,24 +9,22 @@
 items:
   iron_ore:                  6000
   cooked_beef:               3000
-  arrow:                     3500
   torch:                     2000
-  oak_log:                   4000
   coal:                      5000
-  iron_ingot:                12000
   cobblestone:               4500
-  glass:                     6000
+  oak_log:                   4000
   exp_bottle:                9000
-  gold_ingot:                16000
+  iron_ingot:                12000
+  glass:                     6000
   redstone:                  8000
+  arrow:                     3500
+  gold_ingot:                16000
   lapis:                     9000
   obsidian:                  11000
-  ender_pearl:               14000
   diamond:                   26000
+  ender_pearl:               14000
   golden_apple:              22000
   firework:                  5000
-  enchanting_table:          24000
-  anvil:                     18000
   brewing_stand:             20000
   blaze_powder:              13000
   potion_speed:              15000
@@ -34,25 +32,16 @@ items:
   potion_strength:           19000
   diamond_block:             190000
   shulker_box:               60000
-  potion_healing:            17000
-  potion_regen:              18000
-  respawn_anchor:            80000
   book_unbreaking3:          120000
-  book_featherfalling4:      130000
-  book_fireprot4:            140000
-  end_crystal:               45000
-  totem:                     170000
   book_mending:              160000
-  book_blastprot4:           165000
-  netherite_scrap:           115000
-  ancient_debris:            145000
-  elytra:                    260000
-  book_sharpness5:           180000
+  end_crystal:               45000
+  respawn_anchor:            80000
   book_protection4:          190000
+  book_sharpness5:           180000
+  netherite_scrap:           115000
+  totem:                     170000
   netherite_ingot:           420000
-  totem_x3:                  470000
-  netherite_block:           1500000
-  end_crystal_x16:           160000
+  elytra:                    260000
   beacon:                    900000
 
 # --- Клетки редактора /elytrixclan edititem -------------------------------------------
@@ -82,7 +71,7 @@ items:
 #  edit_s34:                  100000
 
 kits:
-  starter:                   200000
-  fighter:                   550000
-  raider:                    1100000
-  legend:                    2400000
+  kit1:                      200000
+  kit4:                      550000
+  kit7:                      1100000
+  kit10:                     2400000

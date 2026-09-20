@@ -70,16 +70,16 @@ public class MemberInventory implements InventoryHolder {
         headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
         headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУбийств: &#F8BEFB" + clanMember.getKills()));
         headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСмертей: &#F8BEFB" + clanMember.getDeaths()));
-        headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУ/С: &#F8BEFB" + clanMember.getKDA()));
+        headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУ/С: &#F8BEFB" + MenuUtil.exp(clanMember.getKDA())));
         headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
         headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fВклад в клан: &#F8BEFB"
-                + round(clanMember.getLevel()) + " опыта"));
+                + MenuUtil.exp(clanMember.getLevel()) + " опыта"));
         // Автоматические роли растут сами — показываем, сколько осталось до следующей.
         if (!ClanRoles.isManual(role)) {
             String next = ClanRoles.nextAutoRole(clanMember.getLevel());
             if (next != null) {
                 headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fДо роли &#F8BEFB" + next
-                        + "&f: &#F8BEFB" + round(ClanRoles.expToNextRole(clanMember.getLevel())) + " опыта"));
+                        + "&f: &#F8BEFB" + MenuUtil.exp(ClanRoles.expToNextRole(clanMember.getLevel())) + " опыта"));
             }
         }
         headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));

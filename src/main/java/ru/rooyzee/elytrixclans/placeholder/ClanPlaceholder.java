@@ -12,6 +12,7 @@ import ru.rooyzee.elytrixclans.clans.Clan;
 import ru.rooyzee.elytrixclans.utils.ConfigUtil;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
 import ru.rooyzee.elytrixclans.utils.LevelUtil;
+import ru.rooyzee.elytrixclans.utils.MenuUtil;
 
 public class ClanPlaceholder extends PlaceholderExpansion {
 
@@ -81,6 +82,39 @@ public class ClanPlaceholder extends PlaceholderExpansion {
             return "";
         }
 
+        // Готовый тег клана для строки над головой: [Клан] в цвете уровня.
+        // Без клана возвращается пустая строка, поэтому в неймтеге не остаётся дырки.
+        if (identifier.equalsIgnoreCase("clan_tag")) {
+            if (clan == null) return "";
+            String color = LevelUtil.getClanLevel(clan.getExp()).getColor();
+            return HexUtil.translateHexColorCodes(
+                    "&7[" + color + clan.getName() + "&7] ");
+        }
+
+        // Голое название без цветов и скобок: если оформление задаётся в самом TAB.
+        if (identifier.equalsIgnoreCase("clan_name_plain")) {
+            return clan != null ? clan.getName() : "";
+        }
+
+        if (identifier.equalsIgnoreCase("clan_level")) {
+            return clan != null
+                    ? String.valueOf(LevelUtil.getClanLevel(clan.getExp()).getLevel()) : "";
+        }
+
+        if (identifier.equalsIgnoreCase("clan_exp")) {
+            return clan != null ? MenuUtil.exp(clan.getExp()) : "0";
+        }
+
+        if (identifier.equalsIgnoreCase("clan_role")) {
+            // player бывает null: PAPI умеет запрашивать плейсхолдеры без игрока.
+            if (clan == null || player == null) return "";
+            ru.rooyzee.elytrixclans.clans.ClanMember member =
+                    main.getClanManager().getMember(clan, player.getName());
+            return member != null
+                    ? ru.rooyzee.elytrixclans.role.ClanRoles.normalize(member.getRole().getName())
+                    : "";
+        }
+
         return identifier;
     }
 
@@ -103,7 +137,7 @@ public class ClanPlaceholder extends PlaceholderExpansion {
         if (clan == null) return EMPTY;
         String color = LevelUtil.getClanLevel(clan.getExp()).getColor();
         if (identifier.contains("exp")) {
-            return HexUtil.translateHexColorCodes(color + FORMAT.get().format(clan.getExp()));
+            return HexUtil.translateHexColorCodes(color + MenuUtil.exp(clan.getExp()));
         }
         return HexUtil.translateHexColorCodes(color + clan.getName());
     }

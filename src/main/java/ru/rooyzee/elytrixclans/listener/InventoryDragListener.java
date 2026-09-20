@@ -10,6 +10,7 @@ import ru.rooyzee.elytrixclans.function.impl.glow.GlowFunction;
 import ru.rooyzee.elytrixclans.function.impl.info.InfoFunction;
 import ru.rooyzee.elytrixclans.function.impl.info.MemberInventory;
 import ru.rooyzee.elytrixclans.function.impl.shop.ShopFunction;
+import ru.rooyzee.elytrixclans.function.impl.shop.admin.KitEditInventory;
 import ru.rooyzee.elytrixclans.function.impl.shop.admin.ShopEditInventory;
 import ru.rooyzee.elytrixclans.function.impl.shop.admin.ShopEditStorage;
 import ru.rooyzee.elytrixclans.function.impl.shop.holder.kits.KitPreviewInventory;
@@ -23,10 +24,15 @@ public class InventoryDragListener implements Listener {
         InventoryHolder holder = topInv.getHolder();
 
         // В редакторе перетаскивание разрешено, но только по клеткам под товар.
-        if (holder instanceof ShopEditInventory) {
+        if (holder instanceof ShopEditInventory || holder instanceof KitEditInventory) {
+            boolean kitEditor = holder instanceof KitEditInventory;
             int editorSize = topInv.getSize();
             for (int slot : event.getRawSlots()) {
-                if (slot < editorSize && !ShopEditStorage.isEditableSlot(slot)) {
+                if (slot >= editorSize) continue;
+                boolean editable = kitEditor
+                        ? KitEditInventory.isEditableSlot(slot)
+                        : ShopEditStorage.isEditableSlot(slot);
+                if (!editable) {
                     event.setCancelled(true);
                     return;
                 }

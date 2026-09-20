@@ -57,6 +57,16 @@ messages:
   targetInvited:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fПриглашение в клан &#F8BEFB%clan% &fот &#F8BEFB%player%"
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fВведите &#F8BEFB/clan accept &fдля принятия"
+  inviteDeclined:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cВы отклонили приглашение"
+  inviteDeclinedByTarget:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИгрок &#F8BEFB%player% &cотклонил &fприглашение"
+  # Кнопки под сообщением о приглашении: нажимаются мышью в чате.
+  inviteButtonsPrefix: "&f☁ &7» "
+  inviteAcceptButton: "&a&l[ПРИНЯТЬ]"
+  inviteDeclineButton: "&c&l[ОТКЛОНИТЬ]"
+  inviteAcceptHover: "&aВступить в клан"
+  inviteDeclineHover: "&cОтказаться от приглашения"
   createdSuccessfully:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aКлан успешно создан!"
   uncorrectNumber:

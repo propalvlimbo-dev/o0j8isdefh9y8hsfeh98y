@@ -5,6 +5,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.InventoryHolder;
+import ru.rooyzee.elytrixclans.function.impl.shop.admin.KitEditInventory;
 import ru.rooyzee.elytrixclans.function.impl.shop.admin.ShopEditInventory;
 import ru.rooyzee.elytrixclans.function.impl.shop.admin.ShopEditStorage;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
@@ -21,6 +22,12 @@ public class ShopEditListener implements Listener {
     @EventHandler
     public void onClose(InventoryCloseEvent event) {
         InventoryHolder holder = event.getInventory().getHolder();
+
+        if (holder instanceof KitEditInventory) {
+            saveKit(event, (KitEditInventory) holder);
+            return;
+        }
+
         if (!(holder instanceof ShopEditInventory)) return;
         ShopEditInventory editor = (ShopEditInventory) holder;
         if (editor.isSaved()) return;
@@ -35,6 +42,22 @@ public class ShopEditListener implements Listener {
         } else {
             player.sendMessage(HexUtil.translateHexColorCodes(
                     "&f☁ &7» &cНе удалось сохранить магазин, смотрите консоль сервера"));
+        }
+    }
+
+    private void saveKit(InventoryCloseEvent event, KitEditInventory editor) {
+        if (editor.isSaved()) return;
+        editor.markSaved();
+
+        boolean ok = ShopEditStorage.saveKit(editor.getKitId(), editor.snapshot());
+        if (!(event.getPlayer() instanceof Player)) return;
+        Player player = (Player) event.getPlayer();
+        if (ok) {
+            player.sendMessage(HexUtil.translateHexColorCodes(
+                    "&f☁ &7» &aНабор сохранён"));
+        } else {
+            player.sendMessage(HexUtil.translateHexColorCodes(
+                    "&f☁ &7» &cНе удалось сохранить набор, смотрите консоль сервера"));
         }
     }
 }

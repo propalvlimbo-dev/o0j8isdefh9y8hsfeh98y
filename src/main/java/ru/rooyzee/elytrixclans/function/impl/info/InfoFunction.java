@@ -92,7 +92,7 @@ public class InfoFunction implements InventoryHolder {
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСмертей: &#F8BEFB" + member.getDeaths()));
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУ/С: &#F8BEFB" + member.getKDA()));
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
-            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fОпыт: &#F8BEFB" + round(member.getLevel())));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fОпыт: &#F8BEFB" + MenuUtil.exp(member.getLevel())));
             // Подсказка только лидеру: обычному участнику клик по голове ничего не даёт,
             // поэтому и строки «Нажмите...» у него быть не должно.
             if (leader && !isOwner && !self) {
@@ -136,7 +136,7 @@ public class InfoFunction implements InventoryHolder {
 
         String needExp = nextLevel != null ? String.valueOf(nextLevel.getExp()) : "MAXIMUM";
         lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fОпыт: &#F8BEFB"
-                + round(clan.getExp()) + " &8/ &#F8BEFB" + needExp));
+                + MenuUtil.exp(clan.getExp()) + " &8/ &#F8BEFB" + needExp));
         lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
         lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУчастники: &#F8BEFB" + clan.getMemberList().size()
                 + " &8/ &#F8BEFB" + currentLevel.getMaxMembers()

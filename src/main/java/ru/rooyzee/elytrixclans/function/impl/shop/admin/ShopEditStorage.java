@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -176,6 +178,38 @@ public final class ShopEditStorage {
         return "&#F8BEFB&l" + Character.toUpperCase(raw.charAt(0)) + raw.substring(1);
     }
 
+    /**
+     * Сохраняет содержимое набора в секцию kits.&lt;id&gt;.items.
+     *
+     * Меняем ТОЛЬКО список предметов: имя, материал иконки, цена, уровень и кулдаун
+     * остаются такими, какими их задали в конфиге.
+     */
+    public static boolean saveKit(String kitId, List<ItemStack> items) {
+        if (kitId == null || kitId.isEmpty()) return false;
+        YamlConfiguration config = loadYaml();
+        ConfigurationSection kits = config.getConfigurationSection("kits");
+        if (kits == null) return false;
+        ConfigurationSection entry = kits.getConfigurationSection(kitId);
+        if (entry == null) return false;
+
+        List<Map<String, Object>> list = new ArrayList<>();
+        for (ItemStack item : items) {
+            if (item == null || item.getType() == Material.AIR) continue;
+            Map<String, Object> values = new LinkedHashMap<>();
+            values.put("material", item.getType().name());
+            values.put("amount", item.getAmount());
+            ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : null;
+            if (meta != null && meta.hasDisplayName()) {
+                values.put("name", meta.getDisplayName().replace('\u00a7', '&'));
+            }
+            // Зачарования, зелья, прочность и флаги — тем же форматом, что читает KitManager.
+            ShopItemMeta.write(values, item);
+            list.add(values);
+        }
+        entry.set("items", list);
+        return write(config);
+    }
+
     /** Атомарная запись: временный файл + замена, плюс копия .bak на случай сбоя. */
     private static boolean write(YamlConfiguration config) {
         File target = file();
@@ -212,12 +246,13 @@ public final class ShopEditStorage {
         }
     }
 
-    /** Чтобы магазин сразу показывал новые позиции, без рестарта сервера. */
+    /** Чтобы магазин сразу показывал новые позиции и наборы, без рестарта сервера. */
     private static void reloadShop() {
         Main main = Main.getInstance();
         if (main == null) return;
         if (main.getPriceConfiguration() != null) main.getPriceConfiguration().reloadYml();
         if (main.getItemsConfiguration() != null) main.getItemsConfiguration().reloadYml();
+        if (main.getKitManager() != null) main.getKitManager().load();
     }
 
     private static void log(String message) {

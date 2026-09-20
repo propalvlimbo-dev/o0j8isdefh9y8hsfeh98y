@@ -15,7 +15,8 @@ import ru.rooyzee.elytrixclans.utils.ConfigUtil;
  * Опыт клана за убийство игрока.
  *
  * Изменения по сравнению со старой версией:
- *  - опыт даётся только убийце (+exp-for-kill, по умолчанию 5); жертва больше НЕ теряет опыт;
+ *  - опыт даётся только убийце (+exp-for-kill, по умолчанию 5) и молча, без сообщения в чат;
+ *  - за убийство своего же соклановца опыт не начисляется вовсе;
  *  - поинтов больше нет вообще;
  *  - кулдаун повторного убийства той же жертвы (по умолчанию 12 часов) переживает рестарт.
  */
@@ -68,10 +69,8 @@ public class PlayerDeathListener implements Listener {
             return;
         }
 
+        // Опыт начисляем молча: сообщение «Клан получил +5» в чате не нужно.
         clanManager.addClanExp(killerClan, expForKill, killer.getName());
-        ConfigUtil.sendMessage(killer, "messages.expForKill", ConfigUtil.setHolder(
-                new String[]{"%player%", "%exp%"},
-                new String[]{victim.getName(), trim(expForKill)}));
     }
 
     private void updateKDA(ClanMember member) {
@@ -89,12 +88,5 @@ public class PlayerDeathListener implements Listener {
         if (hours > 0) return hours + "ч " + minutes + "м";
         if (minutes > 0) return minutes + "м";
         return "меньше минуты";
-    }
-
-    private static String trim(double value) {
-        if (value == Math.floor(value) && !Double.isInfinite(value)) {
-            return String.valueOf((long) value);
-        }
-        return String.valueOf(value);
     }
 }

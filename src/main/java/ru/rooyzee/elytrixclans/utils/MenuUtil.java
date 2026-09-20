@@ -53,6 +53,19 @@ public class MenuUtil {
         return MONEY_FORMAT.get().format(value);
     }
 
+    /**
+     * Количество опыта для показа игроку.
+     *
+     * Опыт внутри хранится как double, поэтому целые значения печатались как «0.0»
+     * и «250.0». Целое число выводим без дробной части, дробное — с одним знаком.
+     */
+    public static String exp(double value) {
+        if (Double.isNaN(value) || Double.isInfinite(value)) return "0";
+        double rounded = Math.round(value * 10.0) / 10.0;
+        if (rounded == Math.rint(rounded)) return String.valueOf((long) rounded);
+        return MONEY_FORMAT.get().format(rounded);
+    }
+
     public static void applyLayout(Inventory inventory) {
         ItemStack blackPane = createPane(Material.BLACK_STAINED_GLASS_PANE);
         ItemStack purplePane = createPane(Material.PURPLE_STAINED_GLASS_PANE);
@@ -125,7 +138,7 @@ public class MenuUtil {
                 Level level = LevelUtil.getClanLevel(clan.getExp());
                 int levelNumber = level != null ? level.getLevel() : 1;
                 lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУровень клана: &#F8BEFB" + levelNumber));
-                lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fОпыт клана: &#F8BEFB" + money(clan.getExp())));
+                lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fОпыт клана: &#F8BEFB" + exp(clan.getExp())));
             }
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
             meta.setLore(lore);

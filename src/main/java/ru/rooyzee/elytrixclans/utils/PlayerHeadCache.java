@@ -55,6 +55,8 @@ public final class PlayerHeadCache {
     private static final Map<String, ItemStack> SKULLS = new ConcurrentHashMap<>();
     /** Отложенные применения владельцев: разбираются в main-потоке с бюджетом времени. */
     private static final ConcurrentLinkedQueue<Runnable> APPLY_QUEUE = new ConcurrentLinkedQueue<>();
+    /** Ники, для которых голова прямо сейчас собирается в фоне: не дублируем работу. */
+    private static final Map<String, Boolean> BUILDING = new ConcurrentHashMap<>();
 
     private static final int MAX_SKULL_CACHE = 2000;
     private static final int MAX_APPLY_QUEUE = 1024;
@@ -114,6 +116,7 @@ public final class PlayerHeadCache {
         QUEUE.clear();
         PENDING.clear();
         APPLY_QUEUE.clear();
+        BUILDING.clear();
         SKULLS.clear();
         plugin = null;
     }
@@ -184,7 +187,7 @@ public final class PlayerHeadCache {
             inventory.setItem(slot, item);
 
             // Заодно запоминаем болванку, чтобы следующее открытие меню было бесплатным.
-            buildAndCache(name, player);
+            buildAsync(name, player);
         } catch (Throwable ignored) {
         }
     }
@@ -204,7 +207,7 @@ public final class PlayerHeadCache {
         // давали фриз на /clan menu. Голова появится через очередь с бюджетом по времени.
         if (onlinePlayer == null) {
             OfflinePlayer knownOwner = known(name);
-            if (knownOwner != null) enqueueApply(() -> buildAndCache(name, knownOwner));
+            if (knownOwner != null) buildAsync(name, knownOwner);
             return null;
         }
 
@@ -233,7 +236,40 @@ public final class PlayerHeadCache {
         return skull;
     }
 
-    /** Сборка головы вне «часа пик»: вызывается только из очереди с бюджетом времени. */
+    /**
+     * Сборка головы в АСИНХРОННОМ потоке.
+     *
+     * setOwningPlayer на оффлайн-игроке подтягивает GameProfile, и если профиль ещё не
+     * закэширован сервером, вызов уходит в чтение с диска или в сеть. Именно поэтому
+     * /clan menu иногда открывался мгновенно, а иногда вешал сервер на полсекунды:
+     * всё зависело от того, чьи профили уже были прогреты. Здесь создаётся обычный
+     * ItemStack без привязки к миру, так что делать это вне главного потока безопасно.
+     */
+    private static void buildAsync(String name, OfflinePlayer owner) {
+        if (owner == null || name == null) return;
+        String key = key(name);
+        if (SKULLS.containsKey(key)) return;
+        // Один и тот же ник не собираем параллельно несколько раз.
+        if (BUILDING.putIfAbsent(key, Boolean.TRUE) != null) return;
+        JavaPlugin plug = plugin;
+        if (plug == null || !plug.isEnabled()) {
+            BUILDING.remove(key);
+            return;
+        }
+        try {
+            Bukkit.getScheduler().runTaskAsynchronously(plug, () -> {
+                try {
+                    buildAndCache(name, owner);
+                } finally {
+                    BUILDING.remove(key);
+                }
+            });
+        } catch (Throwable ignored) {
+            BUILDING.remove(key);
+        }
+    }
+
+    /** Сборка головы: вызывается из асинхронного потока либо из очереди с бюджетом. */
     private static void buildAndCache(String name, OfflinePlayer owner) {
         String key = key(name);
         if (owner == null || SKULLS.containsKey(key)) return;
@@ -283,12 +319,11 @@ public final class PlayerHeadCache {
         if (APPLY_QUEUE.isEmpty()) return;
         long deadline = System.nanoTime() + TICK_BUDGET_NANOS;
         Runnable task;
-        while ((task = APPLY_QUEUE.poll()) != null) {
+        while (System.nanoTime() < deadline && (task = APPLY_QUEUE.poll()) != null) {
             try {
                 task.run();
             } catch (Throwable ignored) {
             }
-            if (System.nanoTime() >= deadline) return;
         }
     }
 
@@ -350,6 +385,9 @@ public final class PlayerHeadCache {
                 }
                 result = player;
                 put(entry.name, player);
+                // Мы уже в асинхронном потоке — собираем голову сразу, чтобы главному
+                // потоку осталось только поставить готовый предмет в слот.
+                buildAndCache(entry.name, player);
             }
         } catch (Throwable ignored) {
         }

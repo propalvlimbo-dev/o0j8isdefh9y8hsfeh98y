@@ -1,297 +1,221 @@
 # Ассортимент кланового магазина ElytrixClans.
 #
+# На каждом уровне клана по 4 позиции. На уровнях 1, 4, 7 и 10 четвёртая позиция —
+# набор, поэтому обычных предметов там три.
+#
 # ЦЕНЫ УДОБНЕЕ МЕНЯТЬ В ОТДЕЛЬНОМ ФАЙЛЕ shop/prices.yml:
 # он короткий, содержит только «id: цена» и переопределяет значения отсюда.
 #
 # В магазине продаются ТОЛЬКО ванильные ресурсы и расходники.
-# Броня и оружие продаются исключительно в составе наборов (секция kits ниже),
-# особых предметов других плагинов в магазине нет.
+# Броня и оружие продаются исключительно в составе наборов (секция kits ниже).
 #
-# Валюта — обычные монеты экономики Vault.
-# Слоты не указываются: товары раскладываются по страницам автоматически.
-# Порядок витрины: по уровню клана, внутри уровня — товары по цене, затем набор этого уровня.
+# Предметы можно добавлять мышкой: /elytrixclan edititem
+# Содержимое наборов правится так же: /elytrixclan editkit <1|4|7|10>
 #
 # Поля позиции:
-#   name      — название в витрине. Описания (lore) намеренно нет: предмет говорит сам за
-#               себя, а магазин показывает цену, количество и уровень. Нужно описание —
-#               добавьте список lore, он будет показан.
+#   name      — название в витрине
 #   material  — материал предмета
 #   amount    — количество
 #   price     — цена в монетах Vault
-#   level     — с какого уровня клана позиция доступна (1..10).
-#               Закрытые позиции показываются барьером и не раскрывают, что за предмет
-#               под ними спрятан: видно только нужный уровень клана.
-#   cooldown  — персональный кулдаун покупки в секундах. Если не указан, считается
-#               автоматически от цены (см. секцию shop.cooldown в config.yml).
-#               Позиция на перезарядке показывается зачарованными часами с остатком времени.
+#   level     — с какого уровня клана позиция доступна (1..10)
+#   cooldown  — персональный кулдаун покупки в секундах (по умолчанию считается от цены)
 #   enchant / stored-enchant / unbreakable / damage / flags / potion-type /
 #   potion-extended / potion-upgraded / potion-effects / potion-color / leather-color
 #             — свойства предмета (см. ShopItemMeta)
 
 items:
   iron_ore:
-    name: "&#F8BEFB&lЖелезная руда"
+    name: "&#F8BEFBЖелезная руда"
     material: IRON_ORE
     amount: 16
     price: 6000
     level: 1
 
   cooked_beef:
-    name: "&#F8BEFB&lЖареная говядина"
+    name: "&#F8BEFBЖареная говядина"
     material: COOKED_BEEF
     amount: 32
     price: 3000
     level: 1
 
-  arrow:
-    name: "&#F8BEFB&lСтрелы"
-    material: ARROW
-    amount: 32
-    price: 3500
-    level: 1
-
   torch:
-    name: "&#F8BEFB&lФакелы"
+    name: "&#F8BEFBФакелы"
     material: TORCH
     amount: 64
     price: 2000
     level: 1
 
-  oak_log:
-    name: "&#F8BEFB&lДубовые брёвна"
-    material: OAK_LOG
-    amount: 32
-    price: 4000
-    level: 1
-
   coal:
-    name: "&#F8BEFB&lУголь"
+    name: "&#F8BEFBУголь"
     material: COAL
     amount: 32
     price: 5000
     level: 2
 
-  iron_ingot:
-    name: "&#F8BEFB&lЖелезные слитки"
-    material: IRON_INGOT
-    amount: 32
-    price: 12000
-    level: 2
-
   cobblestone:
-    name: "&#F8BEFB&lБулыжник"
+    name: "&#F8BEFBБулыжник"
     material: COBBLESTONE
     amount: 64
     price: 4500
     level: 2
 
-  glass:
-    name: "&#F8BEFB&lСтекло"
-    material: GLASS
+  oak_log:
+    name: "&#F8BEFBДубовые брёвна"
+    material: OAK_LOG
     amount: 32
-    price: 6000
+    price: 4000
     level: 2
 
   exp_bottle:
-    name: "&#F8BEFB&lБутыли опыта"
+    name: "&#F8BEFBБутыли опыта"
     material: EXPERIENCE_BOTTLE
     amount: 16
     price: 9000
     level: 2
 
-  gold_ingot:
-    name: "&#F8BEFB&lЗолотые слитки"
-    material: GOLD_INGOT
+  iron_ingot:
+    name: "&#F8BEFBЖелезные слитки"
+    material: IRON_INGOT
     amount: 32
-    price: 16000
+    price: 12000
+    level: 3
+
+  glass:
+    name: "&#F8BEFBСтекло"
+    material: GLASS
+    amount: 32
+    price: 6000
     level: 3
 
   redstone:
-    name: "&#F8BEFB&lРедстоун"
+    name: "&#F8BEFBРедстоун"
     material: REDSTONE
     amount: 32
     price: 8000
     level: 3
 
+  arrow:
+    name: "&#F8BEFBСтрелы"
+    material: ARROW
+    amount: 32
+    price: 3500
+    level: 3
+
+  gold_ingot:
+    name: "&#F8BEFBЗолотые слитки"
+    material: GOLD_INGOT
+    amount: 32
+    price: 16000
+    level: 4
+
   lapis:
-    name: "&#F8BEFB&lЛазурит"
+    name: "&#F8BEFBЛазурит"
     material: LAPIS_LAZULI
     amount: 32
     price: 9000
-    level: 3
+    level: 4
 
   obsidian:
-    name: "&#F8BEFB&lОбсидиан"
+    name: "&#F8BEFBОбсидиан"
     material: OBSIDIAN
     amount: 8
     price: 11000
-    level: 3
-
-  ender_pearl:
-    name: "&#F8BEFB&lЖемчуг Края"
-    material: ENDER_PEARL
-    amount: 8
-    price: 14000
-    level: 3
+    level: 4
 
   diamond:
-    name: "&#F8BEFB&lАлмазы"
+    name: "&#F8BEFBАлмазы"
     material: DIAMOND
     amount: 8
     price: 26000
-    level: 4
+    level: 5
+
+  ender_pearl:
+    name: "&#F8BEFBЖемчуг Края"
+    material: ENDER_PEARL
+    amount: 8
+    price: 14000
+    level: 5
 
   golden_apple:
-    name: "&#F8BEFB&lЗолотые яблоки"
+    name: "&#F8BEFBЗолотые яблоки"
     material: GOLDEN_APPLE
     amount: 8
     price: 22000
-    level: 4
+    level: 5
 
   firework:
-    name: "&#F8BEFB&lФейерверки"
+    name: "&#F8BEFBФейерверки"
     material: FIREWORK_ROCKET
     amount: 4
     price: 5000
-    level: 4
-
-  enchanting_table:
-    name: "&#F8BEFB&lСтол зачарования"
-    material: ENCHANTING_TABLE
-    amount: 1
-    price: 24000
-    level: 4
-
-  anvil:
-    name: "&#F8BEFB&lНаковальня"
-    material: ANVIL
-    amount: 1
-    price: 18000
-    level: 4
+    level: 5
 
   brewing_stand:
-    name: "&#F8BEFB&lВарочная стойка"
+    name: "&#F8BEFBВарочная стойка"
     material: BREWING_STAND
     amount: 1
     price: 20000
-    level: 5
+    level: 6
 
   blaze_powder:
-    name: "&#F8BEFB&lОгненный порошок"
+    name: "&#F8BEFBОгненный порошок"
     material: BLAZE_POWDER
     amount: 16
     price: 13000
-    level: 5
+    level: 6
 
   potion_speed:
-    name: "&#F8BEFB&lЗелье скорости II"
+    name: "&#F8BEFBЗелье скорости II"
     material: POTION
     amount: 1
     price: 15000
-    level: 5
+    level: 6
     potion-upgraded: true
     potion-type: SPEED
 
   potion_fire_res:
-    name: "&#F8BEFB&lЗелье огнестойкости 8:00"
+    name: "&#F8BEFBЗелье огнестойкости"
     material: POTION
     amount: 1
     price: 15000
-    level: 5
+    level: 6
     potion-extended: true
     potion-type: FIRE_RESISTANCE
 
   potion_strength:
-    name: "&#F8BEFB&lЗелье силы II"
+    name: "&#F8BEFBЗелье силы II"
     material: POTION
     amount: 1
     price: 19000
-    level: 5
+    level: 7
     potion-upgraded: true
     potion-type: STRENGTH
 
   diamond_block:
-    name: "&#F8BEFB&lБлоки алмазов"
+    name: "&#F8BEFBБлоки алмазов"
     material: DIAMOND_BLOCK
     amount: 2
     price: 190000
-    level: 6
+    level: 7
 
   shulker_box:
-    name: "&#F8BEFB&lШалкер"
+    name: "&#F8BEFBШалкер"
     material: SHULKER_BOX
     amount: 1
     price: 60000
-    level: 6
-
-  potion_healing:
-    name: "&#F8BEFB&lВзрывное зелье исцеления II"
-    material: SPLASH_POTION
-    amount: 1
-    price: 17000
-    level: 6
-    potion-upgraded: true
-    potion-type: INSTANT_HEAL
-
-  potion_regen:
-    name: "&#F8BEFB&lЗелье регенерации"
-    material: POTION
-    amount: 1
-    price: 18000
-    level: 6
-    potion-upgraded: true
-    potion-type: REGEN
-
-  respawn_anchor:
-    name: "&#F8BEFB&lЯкорь возрождения"
-    material: RESPAWN_ANCHOR
-    amount: 1
-    price: 80000
-    level: 6
+    level: 7
 
   book_unbreaking3:
-    name: "&#F8BEFB&lКнига «Прочность III»"
+    name: "&#F8BEFBКнига «Прочность III»"
     material: ENCHANTED_BOOK
     amount: 1
     price: 120000
-    level: 7
+    level: 8
     stored-enchant:
       - "unbreaking:3"
 
-  book_featherfalling4:
-    name: "&#F8BEFB&lКнига «Невесомость IV»"
-    material: ENCHANTED_BOOK
-    amount: 1
-    price: 130000
-    level: 7
-    stored-enchant:
-      - "feather_falling:4"
-
-  book_fireprot4:
-    name: "&#F8BEFB&lКнига «Огнеупорность IV»"
-    material: ENCHANTED_BOOK
-    amount: 1
-    price: 140000
-    level: 7
-    stored-enchant:
-      - "fire_protection:4"
-
-  end_crystal:
-    name: "&#F8BEFB&lКристаллы Края"
-    material: END_CRYSTAL
-    amount: 4
-    price: 45000
-    level: 7
-
-  totem:
-    name: "&#F8BEFB&lТотем бессмертия"
-    material: TOTEM_OF_UNDYING
-    amount: 1
-    price: 170000
-    level: 7
-
   book_mending:
-    name: "&#F8BEFB&lКнига «Починка»"
+    name: "&#F8BEFBКнига «Починка»"
     material: ENCHANTED_BOOK
     amount: 1
     price: 160000
@@ -299,47 +223,22 @@ items:
     stored-enchant:
       - "mending:1"
 
-  book_blastprot4:
-    name: "&#F8BEFB&lКнига «Взрывоустойчивость IV»"
-    material: ENCHANTED_BOOK
+  end_crystal:
+    name: "&#F8BEFBКристаллы Края"
+    material: END_CRYSTAL
+    amount: 4
+    price: 45000
+    level: 8
+
+  respawn_anchor:
+    name: "&#F8BEFBЯкорь возрождения"
+    material: RESPAWN_ANCHOR
     amount: 1
-    price: 165000
+    price: 80000
     level: 8
-    stored-enchant:
-      - "blast_protection:4"
-
-  netherite_scrap:
-    name: "&#F8BEFB&lОбломки незерита"
-    material: NETHERITE_SCRAP
-    amount: 2
-    price: 115000
-    level: 8
-
-  ancient_debris:
-    name: "&#F8BEFB&lДревние обломки"
-    material: ANCIENT_DEBRIS
-    amount: 2
-    price: 145000
-    level: 8
-
-  elytra:
-    name: "&#F8BEFB&lЭлитры"
-    material: ELYTRA
-    amount: 1
-    price: 260000
-    level: 8
-
-  book_sharpness5:
-    name: "&#F8BEFB&lКнига «Острота V»"
-    material: ENCHANTED_BOOK
-    amount: 1
-    price: 180000
-    level: 9
-    stored-enchant:
-      - "sharpness:5"
 
   book_protection4:
-    name: "&#F8BEFB&lКнига «Защита IV»"
+    name: "&#F8BEFBКнига «Защита IV»"
     material: ENCHANTED_BOOK
     amount: 1
     price: 190000
@@ -347,48 +246,56 @@ items:
     stored-enchant:
       - "protection:4"
 
+  book_sharpness5:
+    name: "&#F8BEFBКнига «Острота V»"
+    material: ENCHANTED_BOOK
+    amount: 1
+    price: 180000
+    level: 9
+    stored-enchant:
+      - "sharpness:5"
+
+  netherite_scrap:
+    name: "&#F8BEFBОбломки незерита"
+    material: NETHERITE_SCRAP
+    amount: 2
+    price: 115000
+    level: 9
+
+  totem:
+    name: "&#F8BEFBТотем бессмертия"
+    material: TOTEM_OF_UNDYING
+    amount: 1
+    price: 170000
+    level: 9
+
   netherite_ingot:
-    name: "&#F8BEFB&lНезеритовые слитки"
+    name: "&#F8BEFBНезеритовые слитки"
     material: NETHERITE_INGOT
     amount: 1
     price: 420000
-    level: 9
-
-  totem_x3:
-    name: "&#F8BEFB&lТотемы бессмертия"
-    material: TOTEM_OF_UNDYING
-    amount: 3
-    price: 470000
-    level: 9
-
-  netherite_block:
-    name: "&#F8BEFB&lБлок незерита"
-    material: NETHERITE_BLOCK
-    amount: 1
-    price: 1500000
     level: 10
 
-  end_crystal_x16:
-    name: "&#F8BEFB&lКристаллы Края"
-    material: END_CRYSTAL
-    amount: 16
-    price: 160000
+  elytra:
+    name: "&#F8BEFBЭлитры"
+    material: ELYTRA
+    amount: 1
+    price: 260000
     level: 10
 
   beacon:
-    name: "&#F8BEFB&lМаяк"
+    name: "&#F8BEFBМаяк"
     material: BEACON
     amount: 1
     price: 900000
     level: 10
 
 # Наборы — единственный способ купить в магазине броню и оружие.
-# Показываются шалкерами прямо в витрине, последними в своём уровне;
-# клик по набору (ЛКМ или ПКМ) открывает меню предпросмотра с кнопкой покупки.
-# Уровни 1, 4, 7, 10. Кулдаун покупки набора — не меньше 15 минут (см. config.yml).
+# Показываются шалкерами последними в своём уровне; клик открывает предпросмотр.
+# Содержимое набора можно править мышкой: /elytrixclan editkit <1|4|7|10>
 kits:
-  starter:
-    name: "&#F8BEFB&lНабор «Новичок»"
+  kit1:
+    name: "&#F8BEFBНабор 1 Уровня"
     material: WHITE_SHULKER_BOX
     price: 200000
     level: 1
@@ -444,8 +351,8 @@ kits:
         potion-type: FIRE_RESISTANCE
         potion-extended: true
 
-  fighter:
-    name: "&#F8BEFB&lНабор «Боец»"
+  kit4:
+    name: "&#F8BEFBНабор 4 Уровня"
     material: LIGHT_BLUE_SHULKER_BOX
     price: 550000
     level: 4
@@ -505,8 +412,8 @@ kits:
         potion-type: FIRE_RESISTANCE
         potion-extended: true
 
-  raider:
-    name: "&#F8BEFB&lНабор «Рейдер»"
+  kit7:
+    name: "&#F8BEFBНабор 7 Уровня"
     material: PURPLE_SHULKER_BOX
     price: 1100000
     level: 7
@@ -571,8 +478,8 @@ kits:
         potion-type: FIRE_RESISTANCE
         potion-extended: true
 
-  legend:
-    name: "&#F8BEFB&lНабор «Легенда»"
+  kit10:
+    name: "&#F8BEFBНабор 10 Уровня"
     material: BLACK_SHULKER_BOX
     price: 2400000
     level: 10

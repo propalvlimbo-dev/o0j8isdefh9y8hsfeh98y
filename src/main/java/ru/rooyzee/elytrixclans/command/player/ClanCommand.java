@@ -30,13 +30,14 @@ import ru.rooyzee.elytrixclans.permission.Permissions;
 import ru.rooyzee.elytrixclans.role.ClanRoles;
 import ru.rooyzee.elytrixclans.utils.ConfigUtil;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
+import ru.rooyzee.elytrixclans.utils.InviteMessageUtil;
 import ru.rooyzee.elytrixclans.utils.LevelUtil;
 import ru.rooyzee.elytrixclans.utils.ValidatorUtil;
 
 public class ClanCommand implements CommandExecutor, TabCompleter {
 
     private final List<String> COMPLETES = Arrays.asList(
-            "shop", "chat", "pvp", "menu", "accept", "home", "promote",
+            "shop", "chat", "pvp", "menu", "accept", "decline", "home", "promote",
             "demote", "kick", "leave", "sethome", "delhome", "create",
             "invite", "disband", "glow", "info");
 
@@ -60,6 +61,7 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
         if (sub.equals("info")) return handleInfo(player, args);
         if (sub.equals("create")) return handleCreate(player, args);
         if (sub.equals("accept")) return handleAccept(player);
+        if (sub.equals("decline") || sub.equals("deny")) return handleDecline(player);
 
         Clan clan = Main.getInstance().getClanManager().getPlayerClan(player);
         if (clan == null) {
@@ -219,6 +221,28 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
         return false;
     }
 
+    /** Отказ от приглашения — вторая кнопка под сообщением о приглашении. */
+    private boolean handleDecline(Player player) {
+        if (!InviteManager.hasInvite(player.getName())) {
+            ConfigUtil.sendMessage(player, "messages.withoutInvite", null);
+            return false;
+        }
+        Invite invite = InviteManager.getInvite(player.getName());
+        InviteManager.removeInvites(player.getName());
+        ConfigUtil.sendMessage(player, "messages.inviteDeclined", null);
+
+        // Пригласившему сообщаем об отказе, если он ещё в сети.
+        if (invite != null) {
+            Player inviter = Bukkit.getPlayerExact(invite.getInviter());
+            if (inviter != null && inviter.isOnline()) {
+                ConfigUtil.sendMessage(inviter, "messages.inviteDeclinedByTarget",
+                        ConfigUtil.setHolder(new String[]{"%player%"},
+                                new String[]{player.getName()}));
+            }
+        }
+        return false;
+    }
+
     private boolean handleLeave(Player player, Clan clan, ClanMember member) {
         if (ClanRoles.LEADER.equals(ClanRoles.normalize(member.getRole().getName()))) {
             ConfigUtil.sendMessage(player, "messages.leaderCantLeave", null);
@@ -316,9 +340,8 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
             return false;
         }
         InviteManager.addInvite(target.getName(), player.getName(), clan.getName());
-        ConfigUtil.sendMessage(target, "messages.targetInvited",
-                ConfigUtil.setHolder(new String[]{"%player%", "%clan%"},
-                        new String[]{player.getName(), clan.getName()}));
+        // Приглашение приходит с кнопками ПРИНЯТЬ / ОТКЛОНИТЬ.
+        InviteMessageUtil.sendInvite(target, player.getName(), clan.getName());
         ConfigUtil.sendMessage(player, "messages.successInvite",
                 ConfigUtil.setHolder(new String[]{"%player%"}, new String[]{target.getName()}));
         return false;
