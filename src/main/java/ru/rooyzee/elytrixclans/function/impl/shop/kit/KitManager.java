@@ -18,6 +18,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import ru.rooyzee.elytrixclans.Main;
+import ru.rooyzee.elytrixclans.function.impl.shop.util.BuyManager;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
 import ru.rooyzee.elytrixclans.utils.ShopItemMeta;
 
@@ -64,7 +65,8 @@ public class KitManager {
             }
 
             loaded.add(new Kit(key.toLowerCase(Locale.ROOT), displayName, iconMaterial, price,
-                    requiredLevel, items, entry.getStringList("commands")));
+                    requiredLevel, items, entry.getStringList("commands"),
+                    entry.getInt("cooldown", 0)));
         }
 
         // Наборы идут в витрине после обычных товаров, по возрастанию требуемого уровня.
@@ -129,9 +131,8 @@ public class KitManager {
             }
         }
         for (String command : kit.getCommands()) {
-            if (command == null || command.trim().isEmpty()) continue;
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
-                    command.replace("%player%", player.getName()));
+            // Через общий безопасный диспетчер: ник экранируется, склейка команд запрещена.
+            BuyManager.dispatchGive(command, player, null);
         }
     }
 }

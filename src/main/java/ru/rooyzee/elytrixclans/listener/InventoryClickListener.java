@@ -3,6 +3,8 @@ package ru.rooyzee.elytrixclans.listener;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -23,12 +25,29 @@ public class InventoryClickListener implements Listener {
         InventoryHolder holder = topInv.getHolder();
         if (!isMenuHolder(holder)) return;
 
-        if (event.getClickedInventory() != topInv) {
-            if (event.isShiftClick()) event.setCancelled(true);
-            return;
+        // Действия, которые могут ВЫТАЩИТЬ предмет из меню, не кликая по нему напрямую:
+        // shift-клик из своего инвентаря, раскладка по номерным клавишам, свап оффхендом,
+        // двойной клик «собрать всё» и сбор одинаковых предметов курсором.
+        InventoryAction action = event.getAction();
+        if (event.isShiftClick()
+                || event.getClick() == ClickType.NUMBER_KEY
+                || event.getClick() == ClickType.SWAP_OFFHAND
+                || event.getClick() == ClickType.DOUBLE_CLICK
+                || action == InventoryAction.COLLECT_TO_CURSOR
+                || action == InventoryAction.MOVE_TO_OTHER_INVENTORY
+                || action == InventoryAction.HOTBAR_SWAP
+                || action == InventoryAction.HOTBAR_MOVE_AND_READD) {
+            event.setCancelled(true);
+            if (event.getClickedInventory() != topInv) return;
         }
 
-        if (event.getSlot() < 0) return;
+        if (event.getClickedInventory() != topInv) return;
+
+        // Клик мимо слотов (по краю окна) — слот -999; дальше он ничего полезного не даёт.
+        if (event.getSlot() < 0) {
+            event.setCancelled(true);
+            return;
+        }
 
         if (event.getCurrentItem() != null && NBTUtil.hasItemNBT(event.getCurrentItem(), "closeItem")) {
             event.setCancelled(true);

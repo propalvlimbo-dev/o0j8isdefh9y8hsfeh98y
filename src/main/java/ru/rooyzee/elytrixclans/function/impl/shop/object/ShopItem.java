@@ -24,10 +24,12 @@ public class ShopItem {
     private final int amount;
     private final int requiredLevel;
     private final List<String> commands;
+    private final int cooldownSeconds;
     private final ShopItemMeta.Reader meta;
 
     public ShopItem(String id, String name, String material, List<String> lore, double price,
-                    int amount, int requiredLevel, List<String> commands, ShopItemMeta.Reader meta) {
+                    int amount, int requiredLevel, List<String> commands, int cooldownSeconds,
+                    ShopItemMeta.Reader meta) {
         this.id = id;
         this.name = name;
         this.material = material;
@@ -36,6 +38,7 @@ public class ShopItem {
         this.amount = Math.max(1, amount);
         this.requiredLevel = Math.max(1, requiredLevel);
         this.commands = commands != null ? commands : Collections.<String>emptyList();
+        this.cooldownSeconds = Math.max(0, cooldownSeconds);
         this.meta = meta != null ? meta : ShopItemMeta.empty();
     }
 
@@ -46,6 +49,9 @@ public class ShopItem {
     public double getPrice() { return price; }
     public int getAmount() { return amount; }
     public int getRequiredLevel() { return requiredLevel; }
+
+    /** Явный кулдаун покупки в секундах; 0 — считать автоматически от цены. */
+    public int getCooldownSeconds() { return cooldownSeconds; }
 
     /** Консольные команды выдачи (для предметов чужих плагинов). %player% заменяется на ник. */
     public List<String> getCommands() { return commands; }

@@ -1,6 +1,7 @@
 package ru.rooyzee.elytrixclans.function.impl.glow;
 
 import java.util.Arrays;
+import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Material;
@@ -33,6 +34,25 @@ public class GlowFunction implements InventoryHolder {
             "#7FFF00", "#FF4500", "#DA70D6", "#40E0D0"
     };
 
+    /** Названия цветов — в том же порядке, что и COLORS_HEX; идут в меню и в сообщение игроку. */
+    private static final String[] COLORS_NAME = {
+            "Красный", "Оранжевый", "Жёлтый", "Зелёный",
+            "Мятный", "Голубой", "Синий", "Фиолетовый",
+            "Пурпурный", "Розовый", "Белый", "Чёрный",
+            "Коричневый", "Индиго", "Золотой", "Лаймовый",
+            "Небесный", "Малиновый", "Бирюзовый", "Ярко-розовый",
+            "Салатовый", "Огненный", "Орхидея", "Аквамарин"
+    };
+
+    /** Название цвета по hex; если цвета нет в палитре — сам hex. */
+    public static String colorName(String hex) {
+        if (hex == null) return "";
+        for (int i = 0; i < COLORS_HEX.length && i < COLORS_NAME.length; i++) {
+            if (COLORS_HEX[i].equalsIgnoreCase(hex)) return COLORS_NAME[i];
+        }
+        return hex;
+    }
+
     public GlowFunction() {
         inventory = Bukkit.createInventory(this, 54,
                 HexUtil.translateHexColorCodes("&#F8BEFB&lПодсветка союзников"));
@@ -51,12 +71,13 @@ public class GlowFunction implements InventoryHolder {
             Color color = GlowManager.colorFromHex(hex);
             ItemStack armor = new ItemStack(Material.LEATHER_CHESTPLATE);
             LeatherArmorMeta armorMeta = (LeatherArmorMeta) armor.getItemMeta();
+            String colorName = i < COLORS_NAME.length ? COLORS_NAME[i] : hex;
             if (armorMeta != null) {
-                armorMeta.setDisplayName(HexUtil.translateHexColorCodes("&7« &#F8BEFBУстановить цвет &7»"));
+                armorMeta.setDisplayName(HexUtil.translateHexColorCodes("&7« &" + hex + colorName + " &7»"));
                 armorMeta.setColor(color);
                 armorMeta.setLore(Arrays.asList(
                         HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "),
-                        HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fЦвет свечения: &" + hex.substring(0, 1) + hex),
+                        HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fЦвет свечения: &" + hex + colorName),
                         HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "),
                         HexUtil.translateHexColorCodes("&7● &fНажмите для установки")
                 ));
@@ -120,6 +141,17 @@ public class GlowFunction implements InventoryHolder {
             Color color = GlowManager.colorFromHexOrNull(hex);
             if (color == null) return;
             Main.getInstance().getGlowManager().setGlowColor(clan, color);
+            // Сообщаем всему клану, какой цвет теперь у подсветки, — сам цвет виден в тексте.
+            Map<String, String> holder = ConfigUtil.setHolder(
+                    new String[]{"%color%", "%hex%", "%player%"},
+                    new String[]{"&" + hex + colorName(hex), hex, player.getName()});
+            for (ClanMember m : clan.getMemberList()) {
+                if (m == null) continue;
+                Player online = m.getPlayer();
+                if (online != null && online.isOnline()) {
+                    ConfigUtil.sendMessage(online, "messages.glowColorSet", holder);
+                }
+            }
         }
     }
 

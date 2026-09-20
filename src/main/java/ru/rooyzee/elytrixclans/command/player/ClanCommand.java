@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -115,6 +118,11 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
             ConfigUtil.sendMessage(player, "messages.alreadyInClan", null);
             return false;
         }
+        if (args[1].length() > 32) {
+            // Не гоняем валидацию и проверки по абсурдно длинному вводу.
+            ConfigUtil.sendMessage(player, "messages.unvalidName", null);
+            return false;
+        }
         String clanName = ValidatorUtil.getValidClanName(args[1]);
         if (clanName == null) {
             ConfigUtil.sendMessage(player, "messages.unvalidName", null);
@@ -154,7 +162,15 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
                     ConfigUtil.setHolder(new String[]{"%price%"}, new String[]{String.valueOf(price)}));
             return false;
         }
-        VaultHook.getEconomy().withdrawPlayer(player, price);
+        net.milkbowl.vault.economy.EconomyResponse response =
+                VaultHook.getEconomy().withdrawPlayer(player, price);
+        if (response == null || !response.transactionSuccess()) {
+            // Списание не прошло (лимит плагина экономики, ошибка БД) — клан не создаём,
+            // иначе он достался бы бесплатно.
+            ConfigUtil.sendMessage(player, "messages.noMoney",
+                    ConfigUtil.setHolder(new String[]{"%price%"}, new String[]{String.valueOf(price)}));
+            return false;
+        }
         try {
             Main.getInstance().getClanManager().createClan(clanName, player);
         } catch (Exception e) {
@@ -219,14 +235,39 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
         return false;
     }
 
+    /** Антифлуд клан-чата: когда игроку в последний раз разрешили отправку. */
+    private static final Map<UUID, Long> CHAT_COOLDOWN = new ConcurrentHashMap<>();
+    private static final long CHAT_COOLDOWN_MS = 1000L;
+    private static final int CHAT_MAX_LENGTH = 200;
+
     private boolean handleChat(Player player, Clan clan, String[] args) {
         if (args.length == 1) return false;
+
+        // Антифлуд: один макрос-клик не должен разливать сотни строк по клану.
+        long now = System.currentTimeMillis();
+        Long next = CHAT_COOLDOWN.get(player.getUniqueId());
+        if (next != null && next > now && !player.hasPermission("elytrixclans.admin")) return false;
+        CHAT_COOLDOWN.put(player.getUniqueId(), now + CHAT_COOLDOWN_MS);
+        if (CHAT_COOLDOWN.size() > 500) {
+            CHAT_COOLDOWN.values().removeIf(value -> value == null || value <= now);
+        }
+
         String msg = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
+        // Режем цветовые коды и §-секции: иначе любой участник красит чат и подделывает
+        // чужой префикс. Право elytrixclans.chatcolor возвращает цвета доверенным игрокам.
+        if (!player.hasPermission("elytrixclans.chatcolor")) {
+            msg = msg.replace('\u00a7', ' ').replace('&', ' ');
+        }
+        msg = msg.replace('\n', ' ').replace('\r', ' ').trim();
+        if (msg.isEmpty()) return false;
+        if (msg.length() > CHAT_MAX_LENGTH) msg = msg.substring(0, CHAT_MAX_LENGTH);
+
+        String line = HexUtil.translateHexColorCodes(
+                "&#F8BEFB✦ &f" + player.getName() + " &7» &f") + msg;
         for (ClanMember m : clan.getMemberList()) {
             Player recipient = m.getPlayer();
             if (recipient != null && recipient.isOnline()) {
-                recipient.sendMessage(HexUtil.translateHexColorCodes(
-                        "&#F8BEFB✦ &f" + player.getName() + " &7» &f" + msg));
+                recipient.sendMessage(line);
             }
         }
         return false;

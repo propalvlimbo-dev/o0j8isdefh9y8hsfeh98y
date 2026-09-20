@@ -1,5 +1,7 @@
 package ru.rooyzee.elytrixclans.function.impl.shop.util;
 
+import java.util.UUID;
+import java.util.regex.Pattern;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Bukkit;
@@ -28,6 +30,35 @@ import ru.rooyzee.elytrixclans.utils.MenuUtil;
  */
 public class BuyManager {
 
+    /**
+     * Ник для подстановки в консольную команду. Всё, что не входит в набор символов ника
+     * Minecraft, отбрасывается: иначе игрок с «хитрым» ником (Floodgate, оффлайн-режим,
+     * ник с пробелом или кавычкой) мог бы дописать в консольную команду свои аргументы.
+     */
+    private static final Pattern UNSAFE_NAME = Pattern.compile("[^A-Za-z0-9_\\.]");
+
+    public static String safeName(String name) {
+        return name == null ? "" : UNSAFE_NAME.matcher(name).replaceAll("");
+    }
+
+    /** Выполняет консольную команду выдачи. Возвращает false, если команда небезопасна. */
+    public static boolean dispatchGive(String rawCommand, Player player, String amountPlaceholder) {
+        if (rawCommand == null) return false;
+        String command = rawCommand.trim();
+        if (command.isEmpty()) return false;
+        String safe = safeName(player.getName());
+        if (safe.isEmpty()) return false;
+        command = command.replace("%player%", safe);
+        if (amountPlaceholder != null) command = command.replace("%amount%", amountPlaceholder);
+        // Перевод строки в команде позволил бы «склеить» вторую команду — такие записи отклоняем.
+        if (command.indexOf('\n') >= 0 || command.indexOf('\r') >= 0) {
+            Main.getInstance().getLogger().warning("Команда магазина отклонена (перевод строки): " + rawCommand);
+            return false;
+        }
+        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+        return true;
+    }
+
     public synchronized void buyItem(Player player, ShopItem shopItem) {
         if (player == null || shopItem == null) return;
 
@@ -35,16 +66,14 @@ public class BuyManager {
         if (clan == null) return;
         if (!hasShopPermission(player, clan)) return;
         if (!hasLevel(player, clan, shopItem.getRequiredLevel())) return;
+        if (!checkCooldown(player, itemKey(shopItem))) return;
 
         if (!withdraw(player, shopItem.getPrice())) return;
 
         try {
             if (shopItem.isCommandItem()) {
                 for (String command : shopItem.getCommands()) {
-                    if (command == null || command.trim().isEmpty()) continue;
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
-                            command.replace("%player%", player.getName())
-                                    .replace("%amount%", String.valueOf(shopItem.getAmount())));
+                    dispatchGive(command, player, String.valueOf(shopItem.getAmount()));
                 }
             } else {
                 giveItem(player, shopItem);
@@ -57,6 +86,8 @@ public class BuyManager {
             return;
         }
 
+        markCooldown(player, itemKey(shopItem),
+                PurchaseCooldownStorage.itemCooldownMillis(shopItem.getPrice(), shopItem.getCooldownSeconds()));
         ConfigUtil.sendMessage(player, "messages.buyItem", ConfigUtil.setHolder(
                 new String[]{"%item%", "%price%"},
                 new String[]{shopItem.getName(), MenuUtil.money(shopItem.getPrice())}));
@@ -69,6 +100,7 @@ public class BuyManager {
         if (clan == null) return;
         if (!hasShopPermission(player, clan)) return;
         if (!hasLevel(player, clan, kit.getRequiredLevel())) return;
+        if (!checkCooldown(player, kitKey(kit))) return;
 
         if (!withdraw(player, kit.getPrice())) return;
 
@@ -81,9 +113,44 @@ public class BuyManager {
             return;
         }
 
+        markCooldown(player, kitKey(kit),
+                PurchaseCooldownStorage.kitCooldownMillis(kit.getPrice(), kit.getCooldownSeconds()));
         ConfigUtil.sendMessage(player, "messages.buyItem", ConfigUtil.setHolder(
                 new String[]{"%item%", "%price%"},
                 new String[]{kit.getDisplayName(), MenuUtil.money(kit.getPrice())}));
+    }
+
+    // --- Кулдауны ---------------------------------------------------------------------------
+
+    /** Ключ кулдауна позиции. Наборы и товары разведены префиксом, чтобы id не пересекались. */
+    public static String itemKey(ShopItem shopItem) {
+        return "item:" + shopItem.getId();
+    }
+
+    public static String kitKey(Kit kit) {
+        return "kit:" + kit.getId();
+    }
+
+    /** Сколько осталось ждать до покупки позиции (мс). */
+    public long remainingCooldown(Player player, String key) {
+        PurchaseCooldownStorage storage = Main.getInstance().getPurchaseCooldownStorage();
+        if (storage == null || player == null) return 0L;
+        return storage.remaining(player.getUniqueId(), key);
+    }
+
+    private boolean checkCooldown(Player player, String key) {
+        long left = remainingCooldown(player, key);
+        if (left <= 0) return true;
+        ConfigUtil.sendMessage(player, "messages.shopCooldown", ConfigUtil.setHolder(
+                new String[]{"%time%"}, new String[]{PurchaseCooldownStorage.format(left)}));
+        return false;
+    }
+
+    private void markCooldown(Player player, String key, long durationMillis) {
+        PurchaseCooldownStorage storage = Main.getInstance().getPurchaseCooldownStorage();
+        if (storage == null) return;
+        UUID id = player.getUniqueId();
+        storage.mark(id, key, durationMillis);
     }
 
     /** Баланс игрока в монетах Vault (0, если экономики нет). */
@@ -101,7 +168,9 @@ public class BuyManager {
         ItemStack stack = ItemsConfiguration.buildRawItem(shopItem);
         if (stack.getType() == Material.AIR) return;
         // Если количество не влезает в один стак, выдаём несколькими.
-        int left = shopItem.getAmount();
+        // Жёсткий потолок: опечатка в конфиге (amount: 100000) иначе уронила бы сервер
+        // тысячами дропов в одном тике.
+        int left = Math.min(shopItem.getAmount(), 2304);
         int max = Math.max(1, stack.getMaxStackSize());
         while (left > 0) {
             ItemStack part = stack.clone();
@@ -152,15 +221,21 @@ public class BuyManager {
             return false;
         }
         if (!economy.has(player, price)) {
-            ConfigUtil.sendMessage(player, "messages.noMoney", null);
+            sendNoMoney(player, price);
             return false;
         }
         EconomyResponse response = economy.withdrawPlayer(player, price);
         if (response == null || !response.transactionSuccess()) {
-            ConfigUtil.sendMessage(player, "messages.noMoney", null);
+            sendNoMoney(player, price);
             return false;
         }
         return true;
+    }
+
+    /** %price% в сообщении раньше не подставлялся — игрок видел сырой плейсхолдер. */
+    private void sendNoMoney(Player player, double price) {
+        ConfigUtil.sendMessage(player, "messages.noMoney", ConfigUtil.setHolder(
+                new String[]{"%price%"}, new String[]{MenuUtil.money(price)}));
     }
 
     private void deposit(Player player, double price) {

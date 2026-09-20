@@ -14,7 +14,11 @@ import ru.rooyzee.elytrixclans.Main;
 import ru.rooyzee.elytrixclans.clans.Clan;
 import ru.rooyzee.elytrixclans.function.impl.shop.ShopFunction;
 import ru.rooyzee.elytrixclans.function.impl.shop.kit.Kit;
+import ru.rooyzee.elytrixclans.function.impl.shop.util.BuyManager;
+import ru.rooyzee.elytrixclans.function.impl.shop.util.PurchaseCooldownStorage;
+import ru.rooyzee.elytrixclans.level.Level;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
+import ru.rooyzee.elytrixclans.utils.LevelUtil;
 import ru.rooyzee.elytrixclans.utils.MenuUtil;
 import ru.rooyzee.elytrixclans.utils.NBTUtil;
 
@@ -53,7 +57,7 @@ public class KitPreviewInventory implements InventoryHolder {
         Clan clan = Main.getInstance().getClanManager().getPlayerClan(player);
         inventory.setItem(4, MenuUtil.createInfoItem(clan,
                 Main.getInstance().getBuyManager().getBalance(player)));
-        inventory.setItem(49, buyButton(kit));
+        inventory.setItem(49, buyButton(player, kit, clan));
         inventory.setItem(45, MenuUtil.createBackButton());
     }
 
@@ -73,11 +77,20 @@ public class KitPreviewInventory implements InventoryHolder {
         return item;
     }
 
-    private ItemStack buyButton(Kit kit) {
-        ItemStack buyBtn = new ItemStack(Material.EMERALD);
+    private ItemStack buyButton(Player player, Kit kit, Clan clan) {
+        Level level = clan != null ? LevelUtil.getClanLevel(clan.getExp()) : null;
+        int clanLevel = level != null ? level.getLevel() : 0;
+        boolean locked = clanLevel < kit.getRequiredLevel();
+        long cooldown = locked ? 0L
+                : Main.getInstance().getBuyManager().remainingCooldown(player, BuyManager.kitKey(kit));
+        boolean available = !locked && cooldown <= 0;
+
+        ItemStack buyBtn = new ItemStack(available ? Material.EMERALD : Material.BARRIER);
         ItemMeta buyMeta = buyBtn.getItemMeta();
         if (buyMeta != null) {
-            buyMeta.setDisplayName(HexUtil.translateHexColorCodes("&7« &aКупить набор &7»"));
+            buyMeta.setDisplayName(HexUtil.translateHexColorCodes(available
+                    ? "&7« &aКупить набор &7»"
+                    : "&7« &cНедоступно &7»"));
             List<String> lore = new ArrayList<>();
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fНабор: ") + kit.getDisplayName());
@@ -86,11 +99,22 @@ public class KitPreviewInventory implements InventoryHolder {
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fТребуется уровень: &#F8BEFB"
                     + kit.getRequiredLevel()));
             lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
-            lore.add(HexUtil.translateHexColorCodes("&7● &fНажмите для покупки"));
+            if (locked) {
+                lore.add(HexUtil.translateHexColorCodes("&c● Откроется на &#F8BEFB"
+                        + kit.getRequiredLevel() + " &cуровне клана"));
+            } else if (cooldown > 0) {
+                lore.add(HexUtil.translateHexColorCodes("&c● Перезарядка: &#F8BEFB"
+                        + PurchaseCooldownStorage.format(cooldown)));
+            } else {
+                lore.add(HexUtil.translateHexColorCodes("&7● &fНажмите для покупки"));
+            }
             buyMeta.setLore(lore);
             buyBtn.setItemMeta(buyMeta);
         }
-        NBTUtil.addItemNBT(buyBtn, "kit_buy", kit.getId());
+        if (available) {
+            // NBT вешаем только на доступную кнопку: недоступную клик просто игнорирует.
+            NBTUtil.addItemNBT(buyBtn, "kit_buy", kit.getId());
+        }
         return buyBtn;
     }
 

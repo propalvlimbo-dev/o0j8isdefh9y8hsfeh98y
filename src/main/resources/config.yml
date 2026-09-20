@@ -9,6 +9,21 @@ exp-for-kill: 5
 # Кулдаун хранится в kill_cooldowns.yml и переживает перезапуск сервера.
 kill-exp-cooldown-hours: 12
 
+# Кулдауны покупок в клановом магазине (персональные, на каждого игрока).
+# Правило простое: чем дороже (то есть сильнее) предмет, тем дольше перезарядка.
+# Длительность = цена / 1000 * seconds-per-1000-coins, с зажатием в границы min/max.
+# Позиция на кулдауне показывается в витрине барьером с остатком времени.
+# Любой товар/набор может переопределить это полем cooldown в shop_item.yml.
+shop:
+  cooldown:
+    # Обычные товары: от 30 секунд до 30 минут.
+    item-min-seconds: 30
+    item-max-seconds: 1800
+    # Наборы: не чаще раза в 15 минут, самые дорогие — раз в 2 часа.
+    kit-min-seconds: 900
+    kit-max-seconds: 7200
+    seconds-per-1000-coins: 3.0
+
 clan_name_min_length: 3
 clan_name_max_length: 6
 clan_create_price: 50000
@@ -97,6 +112,8 @@ messages:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИгрок &#F8BEFB%player% &fприсоединился к клану"
   glowRemoved:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fПодсветка &cудалена"
+  glowColorSet:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИгрок &#F8BEFB%player% &fустановил цвет подсветки: %color% &7(%hex%)"
   glowPvpConflict:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cПодсветка недоступна пока включён PvP в клане"
   withoutClan:
@@ -153,6 +170,8 @@ messages:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aКуплено: &f%item% &7за &#F8BEFB%price% &7монет"
   shopLevelLocked:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cТовар откроется на &#F8BEFB%level% &cуровне клана"
+  shopCooldown:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cЭтот товар можно купить снова через &#F8BEFB%time%"
   noEconomy:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cЭкономика недоступна, покупка невозможна"
   expForKill:

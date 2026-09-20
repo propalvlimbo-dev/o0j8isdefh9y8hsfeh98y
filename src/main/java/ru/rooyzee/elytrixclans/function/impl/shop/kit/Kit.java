@@ -14,9 +14,10 @@ public class Kit {
     private final int requiredLevel;
     private final List<ItemStack> items;
     private final List<String> commands;
+    private final int cooldownSeconds;
 
     public Kit(String id, String displayName, String iconMaterial, double price, int requiredLevel,
-               List<ItemStack> items, List<String> commands) {
+               List<ItemStack> items, List<String> commands, int cooldownSeconds) {
         this.id = id;
         this.displayName = displayName;
         this.iconMaterial = iconMaterial;
@@ -24,6 +25,7 @@ public class Kit {
         this.requiredLevel = Math.max(1, requiredLevel);
         this.items = items != null ? items : Collections.<ItemStack>emptyList();
         this.commands = commands != null ? commands : Collections.<String>emptyList();
+        this.cooldownSeconds = Math.max(0, cooldownSeconds);
     }
 
     public String getId() { return id; }
@@ -31,6 +33,9 @@ public class Kit {
     public String getIconMaterial() { return iconMaterial; }
     public double getPrice() { return price; }
     public int getRequiredLevel() { return requiredLevel; }
+
+    /** Явный кулдаун покупки в секундах; 0 — считать автоматически от цены. */
+    public int getCooldownSeconds() { return cooldownSeconds; }
     public List<ItemStack> getItems() { return items; }
 
     /** Дополнительные консольные команды выдачи (предметы чужих плагинов). */

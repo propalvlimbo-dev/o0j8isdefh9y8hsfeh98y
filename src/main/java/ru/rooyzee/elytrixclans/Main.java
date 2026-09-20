@@ -14,6 +14,7 @@ import ru.rooyzee.elytrixclans.function.impl.glow.GlowPacketListener;
 import ru.rooyzee.elytrixclans.function.impl.shop.config.ItemsConfiguration;
 import ru.rooyzee.elytrixclans.function.impl.shop.kit.KitManager;
 import ru.rooyzee.elytrixclans.function.impl.shop.util.BuyManager;
+import ru.rooyzee.elytrixclans.function.impl.shop.util.PurchaseCooldownStorage;
 import ru.rooyzee.elytrixclans.hook.IHook;
 import ru.rooyzee.elytrixclans.hook.impl.CoreHook;
 import ru.rooyzee.elytrixclans.hook.impl.PAPIHook;
@@ -43,6 +44,7 @@ public final class Main extends JavaPlugin {
     private KitManager kitManager;
     private BuyManager buyManager;
     private KillCooldownStorage killCooldownStorage;
+    private PurchaseCooldownStorage purchaseCooldownStorage;
     private int autoSaveTaskId = -1;
 
     @Override
@@ -64,6 +66,7 @@ public final class Main extends JavaPlugin {
         dataBase = new YAMLDataBase();
         dataBase.connect();
         killCooldownStorage = new KillCooldownStorage(this);
+        purchaseCooldownStorage = new PurchaseCooldownStorage(this);
 
         if (VaultHook.getEconomy() == null) {
             getLogger().warning("Экономика через Vault не найдена: /clan create не сможет списать деньги.");
@@ -130,6 +133,7 @@ public final class Main extends JavaPlugin {
         CloseInventoryUtil.closeAllMenus();
         if (glowManager != null) glowManager.removeAllGlow();
         if (killCooldownStorage != null) killCooldownStorage.shutdown();
+        if (purchaseCooldownStorage != null) purchaseCooldownStorage.shutdown();
         PlayerHeadCache.shutdown();
         if (dataBase != null) {
             try {
@@ -164,5 +168,6 @@ public final class Main extends JavaPlugin {
     public KitManager getKitManager() { return kitManager; }
     public BuyManager getBuyManager() { return buyManager; }
     public KillCooldownStorage getKillCooldownStorage() { return killCooldownStorage; }
+    public PurchaseCooldownStorage getPurchaseCooldownStorage() { return purchaseCooldownStorage; }
     public void saveData() { if (dataBase != null) dataBase.save(); }
 }

@@ -11,6 +11,9 @@ permissions:
     default: false
   elytrixclans.admin:
     default: op
+  # Разрешает использовать цветовые коды в клан-чате (по умолчанию цвета вырезаются).
+  elytrixclans.chatcolor:
+    default: false
 commands:
   clan:
     aliases:

@@ -99,8 +99,9 @@ public class ItemsConfiguration {
             lore.add(HexUtil.translateHexColorCodes(line));
         }
         List<String> commands = entry.getStringList("commands");
+        int cooldown = entry.getInt("cooldown", 0);
         return new ShopItem(key, name, material.toUpperCase(), lore, price, amount, level,
-                commands, ShopItemMeta.of(entry));
+                commands, cooldown, ShopItemMeta.of(entry));
     }
 
     /** Весь ассортимент в порядке витрины. */

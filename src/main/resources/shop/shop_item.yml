@@ -1,14 +1,19 @@
 # Ассортимент кланового магазина ElytrixClans.
 #
 # Валюта — обычные монеты экономики Vault (поинтов в плагине больше нет).
-# Слоты не указываются: товары раскладываются по страницам автоматически,
-# сортировка — сначала по уровню клана, затем по цене.
+# Слоты не указываются: товары раскладываются по страницам автоматически.
+# Порядок витрины: по уровню клана, внутри уровня — товары по цене, затем набор этого уровня.
 #
 # Поля позиции:
 #   material  — материал предмета (он же иконка для командных позиций)
 #   amount    — количество
 #   price     — цена в монетах Vault
-#   level     — с какого уровня клана позиция доступна (1..10)
+#   level     — с какого уровня клана позиция доступна (1..10).
+#               Недоступные позиции показываются БАРЬЕРОМ с подписью нужного уровня.
+#   cooldown  — персональный кулдаун покупки в секундах. Если не указан, считается
+#               автоматически от цены (см. секцию shop.cooldown в config.yml):
+#               чем дороже предмет, тем дольше перезарядка. На кулдауне позиция
+#               тоже показывается барьером с остатком времени.
 #   lore      — описание в витрине
 #   commands  — консольные команды выдачи (%player% = ник покупателя).
 #               Если они заданы, предмет НЕ выдаётся напрямую: работают только команды.
@@ -17,246 +22,111 @@
 #             — свойства предмета (см. ShopItemMeta)
 
 items:
-  cobblestone:
-    name: "&#F8BEFB&lБулыжник"
-    material: COBBLESTONE
-    amount: 64
-    price: 900
-    level: 1
-    lore:
-      - "&#F8BEFB&l┃ &fСтроительный камень"
-
-  stone:
-    name: "&#F8BEFB&lКамень"
-    material: STONE
-    amount: 64
-    price: 1400
-    level: 1
-    lore:
-      - "&#F8BEFB&l┃ &fРовный камень для построек"
-
-  dirt:
-    name: "&#F8BEFB&lЗемля"
-    material: DIRT
-    amount: 64
-    price: 600
-    level: 1
-    lore:
-      - "&#F8BEFB&l┃ &fЗемлю много не бывает"
-
-  sand:
-    name: "&#F8BEFB&lПесок"
-    material: SAND
-    amount: 64
-    price: 1200
-    level: 1
-    lore:
-      - "&#F8BEFB&l┃ &fСырьё для стекла"
-
-  glass:
-    name: "&#F8BEFB&lСтекло"
-    material: GLASS
-    amount: 64
-    price: 2200
-    level: 1
-    lore:
-      - "&#F8BEFB&l┃ &fПрозрачный блок"
-
-  oak_log:
-    name: "&#F8BEFB&lДубовые брёвна"
-    material: OAK_LOG
-    amount: 64
-    price: 2600
-    level: 1
-    lore:
-      - "&#F8BEFB&l┃ &fДревесина для крафта"
-
-  coal:
-    name: "&#F8BEFB&lУголь"
-    material: COAL
-    amount: 64
-    price: 2800
-    level: 1
-    lore:
-      - "&#F8BEFB&l┃ &fТопливо для печей"
-
-  torch:
-    name: "&#F8BEFB&lФакелы"
-    material: TORCH
-    amount: 64
-    price: 800
-    level: 1
-    lore:
-      - "&#F8BEFB&l┃ &fОсвещение шахт"
-
-  bread:
-    name: "&#F8BEFB&lХлеб"
-    material: BREAD
-    amount: 32
-    price: 1500
-    level: 1
-    lore:
-      - "&#F8BEFB&l┃ &fВосстанавливает голод"
-
-  iron_ingot:
-    name: "&#F8BEFB&lЖелезные слитки"
-    material: IRON_INGOT
-    amount: 32
-    price: 6500
-    level: 1
-    lore:
-      - "&#F8BEFB&l┃ &fОснова для брони и инструментов"
-
-  gold_ingot:
-    name: "&#F8BEFB&lЗолотые слитки"
-    material: GOLD_INGOT
-    amount: 32
-    price: 9000
-    level: 2
-    lore:
-      - "&#F8BEFB&l┃ &fЦенный металл"
-
-  redstone:
-    name: "&#F8BEFB&lРедстоун"
-    material: REDSTONE
-    amount: 64
-    price: 5200
-    level: 2
-    lore:
-      - "&#F8BEFB&l┃ &fДля механизмов"
-
-  lapis:
-    name: "&#F8BEFB&lЛазурит"
-    material: LAPIS_LAZULI
-    amount: 64
-    price: 6000
-    level: 2
-    lore:
-      - "&#F8BEFB&l┃ &fНужен для зачарования"
-
   iron_block:
     name: "&#F8BEFB&lБлоки железа"
     material: IRON_BLOCK
     amount: 16
-    price: 34000
-    level: 2
+    price: 18000
+    level: 1
     lore:
-      - "&#F8BEFB&l┃ &fКомпактное хранение железа"
+      - "&#F8BEFB&l┃ &fКомпактное железо для брони и построек"
 
-  cooked_beef:
-    name: "&#F8BEFB&lСтейки"
-    material: COOKED_BEEF
-    amount: 32
-    price: 3200
-    level: 2
-    lore:
-      - "&#F8BEFB&l┃ &fСытная еда для рейда"
-
-  obsidian:
-    name: "&#F8BEFB&lОбсидиан"
-    material: OBSIDIAN
-    amount: 32
-    price: 17000
-    level: 2
-    lore:
-      - "&#F8BEFB&l┃ &fВзрывоустойчивый блок"
-
-  ladder:
-    name: "&#F8BEFB&lЛестницы"
-    material: LADDER
-    amount: 64
-    price: 2400
-    level: 2
-    lore:
-      - "&#F8BEFB&l┃ &fПодъём наверх"
-
-  chest:
-    name: "&#F8BEFB&lСундуки"
-    material: CHEST
+  gold_block:
+    name: "&#F8BEFB&lБлоки золота"
+    material: GOLD_BLOCK
     amount: 16
-    price: 3000
-    level: 2
+    price: 24000
+    level: 1
     lore:
-      - "&#F8BEFB&l┃ &fХранение добычи"
-
-  water_bucket:
-    name: "&#F8BEFB&lВедро воды"
-    material: WATER_BUCKET
-    amount: 1
-    price: 2000
-    level: 2
-    lore:
-      - "&#F8BEFB&l┃ &fСпасает от падения и огня"
-
-  arrow:
-    name: "&#F8BEFB&lСтрелы"
-    material: ARROW
-    amount: 64
-    price: 2600
-    level: 2
-    lore:
-      - "&#F8BEFB&l┃ &fОбычные стрелы"
+      - "&#F8BEFB&l┃ &fЗолото для яблок и механизмов"
 
   diamond:
     name: "&#F8BEFB&lАлмазы"
     material: DIAMOND
     amount: 16
-    price: 26000
-    level: 3
+    price: 22000
+    level: 1
     lore:
-      - "&#F8BEFB&l┃ &fЛучший ванильный ресурс"
+      - "&#F8BEFB&l┃ &fОсновной ресурс для снаряжения"
 
-  emerald:
-    name: "&#F8BEFB&lИзумруды"
-    material: EMERALD
-    amount: 32
-    price: 14000
-    level: 3
+  obsidian:
+    name: "&#F8BEFB&lОбсидиан"
+    material: OBSIDIAN
+    amount: 64
+    price: 20000
+    level: 1
     lore:
-      - "&#F8BEFB&l┃ &fВалюта жителей"
+      - "&#F8BEFB&l┃ &fВзрывоустойчивый блок для базы"
 
   ender_pearl:
     name: "&#F8BEFB&lЖемчуг Края"
     material: ENDER_PEARL
     amount: 16
-    price: 12000
-    level: 3
+    price: 14000
+    level: 1
     lore:
-      - "&#F8BEFB&l┃ &fМгновенный рывок"
+      - "&#F8BEFB&l┃ &fМгновенный рывок в бою"
 
   golden_apple:
     name: "&#F8BEFB&lЗолотые яблоки"
     material: GOLDEN_APPLE
-    amount: 8
-    price: 16000
-    level: 3
+    amount: 16
+    price: 18000
+    level: 1
     lore:
       - "&#F8BEFB&l┃ &fАбсорбция и регенерация"
 
   exp_bottle:
     name: "&#F8BEFB&lБутыли опыта"
     material: EXPERIENCE_BOTTLE
-    amount: 32
-    price: 9500
-    level: 3
+    amount: 64
+    price: 12000
+    level: 1
     lore:
       - "&#F8BEFB&l┃ &fБыстрая прокачка уровней"
+
+  arrow:
+    name: "&#F8BEFB&lСтрелы"
+    material: ARROW
+    amount: 64
+    price: 4000
+    level: 1
+    lore:
+      - "&#F8BEFB&l┃ &fБоезапас для лука"
+
+  shulker_box:
+    name: "&#F8BEFB&lШалкеровый ящик"
+    material: SHULKER_BOX
+    amount: 1
+    price: 45000
+    level: 1
+    lore:
+      - "&#F8BEFB&l┃ &fПереносное хранилище на 27 слотов"
 
   anvil:
     name: "&#F8BEFB&lНаковальня"
     material: ANVIL
     amount: 1
-    price: 12000
-    level: 3
+    price: 15000
+    level: 1
     lore:
-      - "&#F8BEFB&l┃ &fПочинка и объединение книг"
+      - "&#F8BEFB&l┃ &fПочинка и объединение зачарований"
+
+  diamond_block:
+    name: "&#F8BEFB&lБлоки алмазов"
+    material: DIAMOND_BLOCK
+    amount: 4
+    price: 190000
+    level: 2
+    lore:
+      - "&#F8BEFB&l┃ &fКомпактные алмазы"
 
   enchanting_table:
     name: "&#F8BEFB&lСтол зачарования"
     material: ENCHANTING_TABLE
     amount: 1
-    price: 18000
-    level: 3
+    price: 22000
+    level: 2
     lore:
       - "&#F8BEFB&l┃ &fЗачарование снаряжения"
 
@@ -264,8 +134,8 @@ items:
     name: "&#F8BEFB&lВарочная стойка"
     material: BREWING_STAND
     amount: 1
-    price: 9000
-    level: 3
+    price: 14000
+    level: 2
     lore:
       - "&#F8BEFB&l┃ &fПриготовление зелий"
 
@@ -273,72 +143,26 @@ items:
     name: "&#F8BEFB&lОгненный порошок"
     material: BLAZE_POWDER
     amount: 32
-    price: 7000
-    level: 3
+    price: 9000
+    level: 2
     lore:
       - "&#F8BEFB&l┃ &fТопливо зельеварения"
 
-  shulker_box:
-    name: "&#F8BEFB&lШалкеровый ящик"
-    material: SHULKER_BOX
+  respawn_anchor:
+    name: "&#F8BEFB&lЯкорь возрождения"
+    material: RESPAWN_ANCHOR
     amount: 1
-    price: 48000
-    level: 3
+    price: 85000
+    level: 2
     lore:
-      - "&#F8BEFB&l┃ &fПереносное хранилище"
-
-  diamond_block:
-    name: "&#F8BEFB&lБлоки алмазов"
-    material: DIAMOND_BLOCK
-    amount: 4
-    price: 210000
-    level: 4
-    lore:
-      - "&#F8BEFB&l┃ &fКомпактные алмазы"
-
-  netherite_scrap:
-    name: "&#F8BEFB&lОбломки незерита"
-    material: NETHERITE_SCRAP
-    amount: 4
-    price: 95000
-    level: 4
-    lore:
-      - "&#F8BEFB&l┃ &fСырьё для незерита"
-
-  ancient_debris:
-    name: "&#F8BEFB&lДревние обломки"
-    material: ANCIENT_DEBRIS
-    amount: 4
-    price: 120000
-    level: 4
-    lore:
-      - "&#F8BEFB&l┃ &fРедчайший блок Незера"
-
-  totem:
-    name: "&#F8BEFB&lТотем бессмертия"
-    material: TOTEM_OF_UNDYING
-    amount: 1
-    price: 180000
-    level: 4
-    lore:
-      - "&#F8BEFB&l┃ &fСпасает от смерти"
-
-  elytra:
-    name: "&#F8BEFB&lЭлитры"
-    material: ELYTRA
-    amount: 1
-    price: 260000
-    level: 4
-    lore:
-      - "&#F8BEFB&l┃ &fПолёт по миру"
-    unbreakable: true
+      - "&#F8BEFB&l┃ &fТочка возрождения в Незере"
 
   firework:
     name: "&#F8BEFB&lФейерверки"
     material: FIREWORK_ROCKET
     amount: 64
-    price: 6500
-    level: 4
+    price: 9000
+    level: 2
     lore:
       - "&#F8BEFB&l┃ &fРазгон в полёте на элитрах"
 
@@ -346,32 +170,21 @@ items:
     name: "&#F8BEFB&lЗелье скорости II"
     material: POTION
     amount: 1
-    price: 12000
-    level: 4
+    price: 14000
+    level: 2
     lore:
-      - "&#F8BEFB&l┃ &fСкорость II на 1:30"
+      - "&#F8BEFB&l┃ &fСкорость II"
     potion-upgraded: true
     potion-type: SPEED
 
-  potion_strength:
-    name: "&#F8BEFB&lЗелье силы II"
-    material: POTION
-    amount: 1
-    price: 16000
-    level: 4
-    lore:
-      - "&#F8BEFB&l┃ &fСила II на 1:30"
-    potion-upgraded: true
-    potion-type: STRENGTH
-
   potion_fire_res:
-    name: "&#F8BEFB&lЗелье огнестойкости"
+    name: "&#F8BEFB&lЗелье огнестойкости 8:00"
     material: POTION
     amount: 1
-    price: 11000
-    level: 4
+    price: 13000
+    level: 2
     lore:
-      - "&#F8BEFB&l┃ &fОгнестойкость на 8:00"
+      - "&#F8BEFB&l┃ &fПолная защита от огня и лавы"
     potion-extended: true
     potion-type: FIRE_RESISTANCE
 
@@ -379,108 +192,154 @@ items:
     name: "&#F8BEFB&lВзрывное зелье исцеления II"
     material: SPLASH_POTION
     amount: 1
-    price: 13000
-    level: 4
+    price: 15000
+    level: 2
     lore:
-      - "&#F8BEFB&l┃ &fМгновенное лечение"
+      - "&#F8BEFB&l┃ &fМгновенное лечение в бою"
     potion-upgraded: true
     potion-type: INSTANT_HEAL
+
+  potion_strength:
+    name: "&#F8BEFB&lЗелье силы II"
+    material: POTION
+    amount: 1
+    price: 18000
+    level: 2
+    lore:
+      - "&#F8BEFB&l┃ &fСила II — больше урона"
+    potion-upgraded: true
+    potion-type: STRENGTH
+
+  diamond_helmet_p3:
+    name: "&#F8BEFB&lАлмазный шлем &7[Защ. III]"
+    material: DIAMOND_HELMET
+    amount: 1
+    price: 110000
+    level: 3
+    lore:
+      - "&#F8BEFB&l┃ &fЗащита III, Прочность III, Починка"
+    enchant:
+      - "protection:3"
+      - "unbreaking:3"
+      - "mending:1"
+
+  diamond_chest_p3:
+    name: "&#F8BEFB&lАлмазный нагрудник &7[Защ. III]"
+    material: DIAMOND_CHESTPLATE
+    amount: 1
+    price: 165000
+    level: 3
+    lore:
+      - "&#F8BEFB&l┃ &fЗащита III, Прочность III, Починка"
+    enchant:
+      - "protection:3"
+      - "unbreaking:3"
+      - "mending:1"
+
+  diamond_legs_p3:
+    name: "&#F8BEFB&lАлмазные поножи &7[Защ. III]"
+    material: DIAMOND_LEGGINGS
+    amount: 1
+    price: 150000
+    level: 3
+    lore:
+      - "&#F8BEFB&l┃ &fЗащита III, Прочность III, Починка"
+    enchant:
+      - "protection:3"
+      - "unbreaking:3"
+      - "mending:1"
+
+  diamond_boots_p3:
+    name: "&#F8BEFB&lАлмазные ботинки &7[Защ. III]"
+    material: DIAMOND_BOOTS
+    amount: 1
+    price: 110000
+    level: 3
+    lore:
+      - "&#F8BEFB&l┃ &fЗащита III, Невесомость III, Починка"
+    enchant:
+      - "protection:3"
+      - "feather_falling:3"
+      - "unbreaking:3"
+      - "mending:1"
 
   diamond_sword_s4:
     name: "&#F8BEFB&lАлмазный меч &7[Остр. IV]"
     material: DIAMOND_SWORD
     amount: 1
     price: 140000
-    level: 5
+    level: 3
     lore:
-      - "&#F8BEFB&l┃ &fОстрота IV, Прочность III"
+      - "&#F8BEFB&l┃ &fОстрота IV, Огонь II, Прочность III"
     enchant:
       - "sharpness:4"
+      - "fire_aspect:2"
       - "unbreaking:3"
     flags:
       - "HIDE_ATTRIBUTES"
 
-  diamond_pickaxe_e4:
-    name: "&#F8BEFB&lАлмазная кирка &7[Эфф. IV]"
+  diamond_pickaxe_e5:
+    name: "&#F8BEFB&lАлмазная кирка &7[Эфф. V]"
     material: DIAMOND_PICKAXE
     amount: 1
     price: 130000
-    level: 5
+    level: 3
     lore:
-      - "&#F8BEFB&l┃ &fЭффективность IV, Удача III"
+      - "&#F8BEFB&l┃ &fЭффективность V, Удача III, Починка"
     enchant:
-      - "efficiency:4"
+      - "efficiency:5"
       - "fortune:3"
       - "unbreaking:3"
+      - "mending:1"
 
-  diamond_helmet_p3:
-    name: "&#F8BEFB&lАлмазный шлем &7[Защ. III]"
-    material: DIAMOND_HELMET
-    amount: 1
-    price: 120000
-    level: 5
-    lore:
-      - "&#F8BEFB&l┃ &fЗащита III, Прочность III"
-    enchant:
-      - "protection:3"
-      - "unbreaking:3"
-
-  diamond_chest_p3:
-    name: "&#F8BEFB&lАлмазный нагрудник &7[Защ. III]"
-    material: DIAMOND_CHESTPLATE
-    amount: 1
-    price: 180000
-    level: 5
-    lore:
-      - "&#F8BEFB&l┃ &fЗащита III, Прочность III"
-    enchant:
-      - "protection:3"
-      - "unbreaking:3"
-
-  diamond_legs_p3:
-    name: "&#F8BEFB&lАлмазные поножи &7[Защ. III]"
-    material: DIAMOND_LEGGINGS
-    amount: 1
-    price: 165000
-    level: 5
-    lore:
-      - "&#F8BEFB&l┃ &fЗащита III, Прочность III"
-    enchant:
-      - "protection:3"
-      - "unbreaking:3"
-
-  diamond_boots_p3:
-    name: "&#F8BEFB&lАлмазные ботинки &7[Защ. III]"
-    material: DIAMOND_BOOTS
-    amount: 1
-    price: 120000
-    level: 5
-    lore:
-      - "&#F8BEFB&l┃ &fЗащита III, Невесомость III"
-    enchant:
-      - "protection:3"
-      - "feather_falling:3"
-      - "unbreaking:3"
-
-  bow_power4:
-    name: "&#F8BEFB&lЛук &7[Сила IV]"
+  bow_power5:
+    name: "&#F8BEFB&lЛук &7[Сила V]"
     material: BOW
     amount: 1
-    price: 95000
-    level: 5
+    price: 120000
+    level: 3
     lore:
-      - "&#F8BEFB&l┃ &fСила IV, Откидывание II"
+      - "&#F8BEFB&l┃ &fСила V, Откидывание II, Бесконечность"
     enchant:
-      - "power:4"
+      - "power:5"
       - "punch:2"
+      - "infinity:1"
       - "unbreaking:3"
+
+  totem:
+    name: "&#F8BEFB&lТотем бессмертия"
+    material: TOTEM_OF_UNDYING
+    amount: 1
+    price: 170000
+    level: 3
+    lore:
+      - "&#F8BEFB&l┃ &fСпасает от смерти"
+
+  elytra:
+    name: "&#F8BEFB&lЭлитры &7[неразрушимые]"
+    material: ELYTRA
+    amount: 1
+    price: 240000
+    level: 3
+    lore:
+      - "&#F8BEFB&l┃ &fПолёт по миру, без износа"
+    unbreakable: true
+
+  end_crystal:
+    name: "&#F8BEFB&lКристаллы Края"
+    material: END_CRYSTAL
+    amount: 8
+    price: 60000
+    level: 3
+    lore:
+      - "&#F8BEFB&l┃ &fДля взрывных атак по базам"
 
   book_mending:
     name: "&#F8BEFB&lКнига: Починка"
     material: ENCHANTED_BOOK
     amount: 1
     price: 150000
-    level: 5
+    level: 4
     lore:
       - "&#F8BEFB&l┃ &fЗачарование Починка"
     stored-enchant:
@@ -491,7 +350,7 @@ items:
     material: ENCHANTED_BOOK
     amount: 1
     price: 170000
-    level: 5
+    level: 4
     lore:
       - "&#F8BEFB&l┃ &fЗачарование Острота V"
     stored-enchant:
@@ -501,124 +360,168 @@ items:
     name: "&#F8BEFB&lКнига: Защита IV"
     material: ENCHANTED_BOOK
     amount: 1
-    price: 175000
-    level: 5
+    price: 180000
+    level: 4
     lore:
       - "&#F8BEFB&l┃ &fЗачарование Защита IV"
     stored-enchant:
       - "protection:4"
 
-  egg_chicken:
-    name: "&#F8BEFB&lЯйцо призыва: Курица"
-    material: CHICKEN_SPAWN_EGG
+  book_unbreaking3:
+    name: "&#F8BEFB&lКнига: Прочность III"
+    material: ENCHANTED_BOOK
     amount: 1
-    price: 45000
-    level: 6
+    price: 120000
+    level: 4
     lore:
-      - "&#F8BEFB&l┃ &fПризывает существо: Курица"
-      - "&#F8BEFB&l┃ &fВыдаётся командой сервера"
-    commands:
-      - "minecraft:give %player% minecraft:chicken_spawn_egg 1"
+      - "&#F8BEFB&l┃ &fЗачарование Прочность III"
+    stored-enchant:
+      - "unbreaking:3"
 
-  egg_pig:
-    name: "&#F8BEFB&lЯйцо призыва: Свинья"
-    material: PIG_SPAWN_EGG
+  book_fireprot4:
+    name: "&#F8BEFB&lКнига: Огнеупорность IV"
+    material: ENCHANTED_BOOK
     amount: 1
-    price: 45000
-    level: 6
+    price: 140000
+    level: 4
     lore:
-      - "&#F8BEFB&l┃ &fПризывает существо: Свинья"
-      - "&#F8BEFB&l┃ &fВыдаётся командой сервера"
-    commands:
-      - "minecraft:give %player% minecraft:pig_spawn_egg 1"
+      - "&#F8BEFB&l┃ &fЗачарование Огнеупорность IV"
+    stored-enchant:
+      - "fire_protection:4"
 
-  egg_zombie:
-    name: "&#F8BEFB&lЯйцо призыва: Зомби"
-    material: ZOMBIE_SPAWN_EGG
+  book_blastprot4:
+    name: "&#F8BEFB&lКнига: Взрывоустойчивость IV"
+    material: ENCHANTED_BOOK
     amount: 1
-    price: 70000
-    level: 6
+    price: 165000
+    level: 4
     lore:
-      - "&#F8BEFB&l┃ &fПризывает существо: Зомби"
-      - "&#F8BEFB&l┃ &fВыдаётся командой сервера"
-    commands:
-      - "minecraft:give %player% minecraft:zombie_spawn_egg 1"
+      - "&#F8BEFB&l┃ &fЗачарование Взрывоустойчивость IV"
+    stored-enchant:
+      - "blast_protection:4"
 
-  egg_creeper:
-    name: "&#F8BEFB&lЯйцо призыва: Крипер"
-    material: CREEPER_SPAWN_EGG
+  book_featherfalling4:
+    name: "&#F8BEFB&lКнига: Невесомость IV"
+    material: ENCHANTED_BOOK
     amount: 1
-    price: 90000
-    level: 6
+    price: 130000
+    level: 4
     lore:
-      - "&#F8BEFB&l┃ &fПризывает существо: Крипер"
-      - "&#F8BEFB&l┃ &fВыдаётся командой сервера"
-    commands:
-      - "minecraft:give %player% minecraft:creeper_spawn_egg 1"
+      - "&#F8BEFB&l┃ &fЗачарование Невесомость IV"
+    stored-enchant:
+      - "feather_falling:4"
 
-  egg_spider:
-    name: "&#F8BEFB&lЯйцо призыва: Паук"
-    material: SPIDER_SPAWN_EGG
-    amount: 1
-    price: 70000
-    level: 6
+  netherite_scrap:
+    name: "&#F8BEFB&lОбломки незерита"
+    material: NETHERITE_SCRAP
+    amount: 4
+    price: 110000
+    level: 4
     lore:
-      - "&#F8BEFB&l┃ &fПризывает существо: Паук"
-      - "&#F8BEFB&l┃ &fВыдаётся командой сервера"
-    commands:
-      - "minecraft:give %player% minecraft:spider_spawn_egg 1"
+      - "&#F8BEFB&l┃ &fСырьё для незерита"
 
-  egg_villager:
-    name: "&#F8BEFB&lЯйцо призыва: Житель"
-    material: VILLAGER_SPAWN_EGG
-    amount: 1
-    price: 150000
-    level: 6
+  ancient_debris:
+    name: "&#F8BEFB&lДревние обломки"
+    material: ANCIENT_DEBRIS
+    amount: 4
+    price: 140000
+    level: 4
     lore:
-      - "&#F8BEFB&l┃ &fПризывает существо: Житель"
-      - "&#F8BEFB&l┃ &fВыдаётся командой сервера"
-    commands:
-      - "minecraft:give %player% minecraft:villager_spawn_egg 1"
+      - "&#F8BEFB&l┃ &fРедчайший блок Незера"
 
-  egg_witch:
-    name: "&#F8BEFB&lЯйцо призыва: Ведьма"
-    material: WITCH_SPAWN_EGG
-    amount: 1
-    price: 170000
-    level: 6
+  totem_x3:
+    name: "&#F8BEFB&lТотемы бессмертия x3"
+    material: TOTEM_OF_UNDYING
+    amount: 3
+    price: 460000
+    level: 4
     lore:
-      - "&#F8BEFB&l┃ &fПризывает существо: Ведьма"
-      - "&#F8BEFB&l┃ &fВыдаётся командой сервера"
-    commands:
-      - "minecraft:give %player% minecraft:witch_spawn_egg 1"
-
-  egg_blaze:
-    name: "&#F8BEFB&lЯйцо призыва: Ифрит"
-    material: BLAZE_SPAWN_EGG
-    amount: 1
-    price: 180000
-    level: 6
-    lore:
-      - "&#F8BEFB&l┃ &fПризывает существо: Ифрит"
-      - "&#F8BEFB&l┃ &fВыдаётся командой сервера"
-    commands:
-      - "minecraft:give %player% minecraft:blaze_spawn_egg 1"
+      - "&#F8BEFB&l┃ &fЗапас на затяжной бой"
 
   netherite_ingot:
     name: "&#F8BEFB&lНезеритовые слитки"
     material: NETHERITE_INGOT
     amount: 2
     price: 420000
-    level: 7
+    level: 5
     lore:
       - "&#F8BEFB&l┃ &fТоповый металл"
+
+  netherite_helmet:
+    name: "&#F8BEFB&lНезеритовый шлем &7[Защ. IV]"
+    material: NETHERITE_HELMET
+    amount: 1
+    price: 480000
+    level: 5
+    lore:
+      - "&#F8BEFB&l┃ &fЗащита IV, Прочность III, Починка"
+    enchant:
+      - "protection:4"
+      - "unbreaking:3"
+      - "mending:1"
+
+  netherite_chest:
+    name: "&#F8BEFB&lНезеритовый нагрудник &7[Защ. IV]"
+    material: NETHERITE_CHESTPLATE
+    amount: 1
+    price: 620000
+    level: 5
+    lore:
+      - "&#F8BEFB&l┃ &fЗащита IV, Прочность III, Починка"
+    enchant:
+      - "protection:4"
+      - "unbreaking:3"
+      - "mending:1"
+
+  netherite_legs:
+    name: "&#F8BEFB&lНезеритовые поножи &7[Защ. IV]"
+    material: NETHERITE_LEGGINGS
+    amount: 1
+    price: 580000
+    level: 5
+    lore:
+      - "&#F8BEFB&l┃ &fЗащита IV, Прочность III, Починка"
+    enchant:
+      - "protection:4"
+      - "unbreaking:3"
+      - "mending:1"
+
+  netherite_boots:
+    name: "&#F8BEFB&lНезеритовые ботинки &7[Защ. IV]"
+    material: NETHERITE_BOOTS
+    amount: 1
+    price: 480000
+    level: 5
+    lore:
+      - "&#F8BEFB&l┃ &fЗащита IV, Невесомость IV, Починка"
+    enchant:
+      - "protection:4"
+      - "feather_falling:4"
+      - "unbreaking:3"
+      - "mending:1"
 
   netherite_sword:
     name: "&#F8BEFB&lНезеритовый меч &7[Остр. V]"
     material: NETHERITE_SWORD
     amount: 1
     price: 560000
-    level: 7
+    level: 5
+    lore:
+      - "&#F8BEFB&l┃ &fОстрота V, Огонь II, Прочность III, Починка"
+    enchant:
+      - "sharpness:5"
+      - "fire_aspect:2"
+      - "unbreaking:3"
+      - "mending:1"
+    flags:
+      - "HIDE_ATTRIBUTES"
+
+  netherite_axe:
+    name: "&#F8BEFB&lНезеритовый топор &7[Остр. V]"
+    material: NETHERITE_AXE
+    amount: 1
+    price: 540000
+    level: 5
     lore:
       - "&#F8BEFB&l┃ &fОстрота V, Прочность III, Починка"
     enchant:
@@ -628,65 +531,180 @@ items:
     flags:
       - "HIDE_ATTRIBUTES"
 
-  netherite_chest:
-    name: "&#F8BEFB&lНезеритовый нагрудник &7[Защ. IV]"
-    material: NETHERITE_CHESTPLATE
+  netherite_pickaxe:
+    name: "&#F8BEFB&lНезеритовая кирка &7[Эфф. V]"
+    material: NETHERITE_PICKAXE
     amount: 1
-    price: 620000
-    level: 7
+    price: 520000
+    level: 5
     lore:
-      - "&#F8BEFB&l┃ &fЗащита IV, Прочность III, Починка"
+      - "&#F8BEFB&l┃ &fЭффективность V, Удача III, Починка"
     enchant:
-      - "protection:4"
+      - "efficiency:5"
+      - "fortune:3"
       - "unbreaking:3"
       - "mending:1"
 
-  end_crystal:
-    name: "&#F8BEFB&lКристаллы Края"
-    material: END_CRYSTAL
-    amount: 8
-    price: 48000
-    level: 7
+  crossbow_qc:
+    name: "&#F8BEFB&lАрбалет &7[Скорострельность III]"
+    material: CROSSBOW
+    amount: 1
+    price: 180000
+    level: 5
     lore:
-      - "&#F8BEFB&l┃ &fДля взрывных атак"
+      - "&#F8BEFB&l┃ &fСкорострельность III, Множественный выстрел"
+    enchant:
+      - "quick_charge:3"
+      - "multishot:1"
+      - "unbreaking:3"
+      - "mending:1"
 
-  respawn_anchor:
-    name: "&#F8BEFB&lЯкорь возрождения"
-    material: RESPAWN_ANCHOR
+  end_crystal_x32:
+    name: "&#F8BEFB&lКристаллы Края x32"
+    material: END_CRYSTAL
+    amount: 32
+    price: 230000
+    level: 5
+    lore:
+      - "&#F8BEFB&l┃ &fБольшой запас для рейда"
+
+  egg_zombie:
+    name: "&#F8BEFB&lЯйцо призыва: Зомби"
+    material: ZOMBIE_SPAWN_EGG
+    amount: 1
+    price: 80000
+    level: 6
+    lore:
+      - "&#F8BEFB&l┃ &fПризывает существо: Зомби"
+    commands:
+      - "minecraft:give %player% minecraft:zombie_spawn_egg 1"
+
+  egg_creeper:
+    name: "&#F8BEFB&lЯйцо призыва: Крипер"
+    material: CREEPER_SPAWN_EGG
+    amount: 1
+    price: 110000
+    level: 6
+    lore:
+      - "&#F8BEFB&l┃ &fПризывает существо: Крипер"
+    commands:
+      - "minecraft:give %player% minecraft:creeper_spawn_egg 1"
+
+  egg_spider:
+    name: "&#F8BEFB&lЯйцо призыва: Паук"
+    material: SPIDER_SPAWN_EGG
     amount: 1
     price: 85000
-    level: 7
+    level: 6
     lore:
-      - "&#F8BEFB&l┃ &fТочка возрождения в Незере"
+      - "&#F8BEFB&l┃ &fПризывает существо: Паук"
+    commands:
+      - "minecraft:give %player% minecraft:spider_spawn_egg 1"
+
+  egg_villager:
+    name: "&#F8BEFB&lЯйцо призыва: Житель"
+    material: VILLAGER_SPAWN_EGG
+    amount: 1
+    price: 190000
+    level: 6
+    lore:
+      - "&#F8BEFB&l┃ &fПризывает существо: Житель"
+    commands:
+      - "minecraft:give %player% minecraft:villager_spawn_egg 1"
+
+  egg_witch:
+    name: "&#F8BEFB&lЯйцо призыва: Ведьма"
+    material: WITCH_SPAWN_EGG
+    amount: 1
+    price: 210000
+    level: 6
+    lore:
+      - "&#F8BEFB&l┃ &fПризывает существо: Ведьма"
+    commands:
+      - "minecraft:give %player% minecraft:witch_spawn_egg 1"
+
+  egg_blaze:
+    name: "&#F8BEFB&lЯйцо призыва: Ифрит"
+    material: BLAZE_SPAWN_EGG
+    amount: 1
+    price: 230000
+    level: 6
+    lore:
+      - "&#F8BEFB&l┃ &fПризывает существо: Ифрит"
+    commands:
+      - "minecraft:give %player% minecraft:blaze_spawn_egg 1"
+
+  egg_pillager:
+    name: "&#F8BEFB&lЯйцо призыва: Разбойник"
+    material: PILLAGER_SPAWN_EGG
+    amount: 1
+    price: 200000
+    level: 6
+    lore:
+      - "&#F8BEFB&l┃ &fПризывает существо: Разбойник"
+    commands:
+      - "minecraft:give %player% minecraft:pillager_spawn_egg 1"
+
+  egg_ghast:
+    name: "&#F8BEFB&lЯйцо призыва: Гаст"
+    material: GHAST_SPAWN_EGG
+    amount: 1
+    price: 260000
+    level: 6
+    lore:
+      - "&#F8BEFB&l┃ &fПризывает существо: Гаст"
+    commands:
+      - "minecraft:give %player% minecraft:ghast_spawn_egg 1"
 
   ei_arrow1:
     name: "&#F8BEFB&lОсобые стрелы I"
     material: SPECTRAL_ARROW
     amount: 8
-    price: 75000
+    price: 90000
     level: 7
     lore:
       - "&#F8BEFB&l┃ &fОсобые стрелы сервера"
-      - "&#F8BEFB&l┃ &fВыдаются плагином"
     commands:
       - "ei give %player% arrow1 8"
+
+  ei_arrow_levit:
+    name: "&#F8BEFB&lСтрелы левитации"
+    material: SPECTRAL_ARROW
+    amount: 8
+    price: 130000
+    level: 7
+    lore:
+      - "&#F8BEFB&l┃ &fПоднимают цель в воздух"
+    commands:
+      - "ei give %player% arrow_levit 8"
 
   ei_potion_healt:
     name: "&#F8BEFB&lОсобое зелье: Лекарь"
     material: POTION
     amount: 1
-    price: 95000
+    price: 110000
     level: 7
     lore:
       - "&#F8BEFB&l┃ &fОсобое зелье сервера"
     commands:
       - "ei give %player% potion_healt 1"
 
+  ei_potion_voina:
+    name: "&#F8BEFB&lОсобое зелье: Война"
+    material: POTION
+    amount: 1
+    price: 160000
+    level: 7
+    lore:
+      - "&#F8BEFB&l┃ &fБоевое зелье сервера"
+    commands:
+      - "ei give %player% potion_voina 1"
+
   brew_onebrew:
     name: "&#F8BEFB&lУлучшенная зельеварка I"
     material: BREWING_STAND
     amount: 1
-    price: 140000
+    price: 180000
     level: 7
     lore:
       - "&#F8BEFB&l┃ &fУскоренная варка зелий"
@@ -697,40 +715,84 @@ items:
     name: "&#F8BEFB&lУлучшенная печь II"
     material: FURNACE
     amount: 1
-    price: 160000
-    level: 8
+    price: 200000
+    level: 7
     lore:
       - "&#F8BEFB&l┃ &fУскоренная переплавка"
     commands:
       - "shadowbrewing give %player% twofurnace 1"
 
+  ei_farmila:
+    name: "&#F8BEFB&lМеч фарма"
+    material: DIAMOND_SWORD
+    amount: 1
+    price: 340000
+    level: 8
+    lore:
+      - "&#F8BEFB&l┃ &fОсобый меч для фарма"
+    commands:
+      - "ei give %player% farmila 1"
+
   ei_totem1:
     name: "&#F8BEFB&lОсобый тотем: Урон"
     material: TOTEM_OF_UNDYING
     amount: 1
-    price: 320000
+    price: 380000
     level: 8
     lore:
       - "&#F8BEFB&l┃ &fТотем с бонусом к урону"
     commands:
       - "ei give %player% totem1 1"
 
+  ei_totem2:
+    name: "&#F8BEFB&lОсобый тотем: Здоровье"
+    material: TOTEM_OF_UNDYING
+    amount: 1
+    price: 380000
+    level: 8
+    lore:
+      - "&#F8BEFB&l┃ &fТотем с бонусом к здоровью"
+    commands:
+      - "ei give %player% totem2 1"
+
   ei_aura_fall:
     name: "&#F8BEFB&lАура защиты от падения"
     material: FEATHER
     amount: 1
-    price: 290000
+    price: 320000
     level: 8
     lore:
       - "&#F8BEFB&l┃ &fАура сервера"
     commands:
       - "ei give %player% fall_protection_aura 1"
 
+  ei_aura_miner:
+    name: "&#F8BEFB&lАура шахтёра"
+    material: GOLDEN_PICKAXE
+    amount: 1
+    price: 350000
+    level: 8
+    lore:
+      - "&#F8BEFB&l┃ &fАура сервера для добычи"
+    commands:
+      - "ei give %player% miner_aura 1"
+
+  brew_fourfurnace:
+    name: "&#F8BEFB&lУлучшенная печь IV"
+    material: BLAST_FURNACE
+    amount: 1
+    price: 420000
+    level: 8
+    lore:
+      - "&#F8BEFB&l┃ &fМаксимальная скорость переплавки"
+    commands:
+      - "shadowbrewing give %player% fourFurnace 1"
+
   ei_shalker_helmet:
     name: "&#F8BEFB&lШлем шалкера"
     material: NETHERITE_HELMET
     amount: 1
-    price: 540000
+    price: 620000
     level: 9
     lore:
       - "&#F8BEFB&l┃ &fОсобый шлем сервера"
@@ -741,29 +803,40 @@ items:
     name: "&#F8BEFB&lНагрудник шалкера"
     material: NETHERITE_CHESTPLATE
     amount: 1
-    price: 640000
+    price: 720000
     level: 9
     lore:
       - "&#F8BEFB&l┃ &fОсобый нагрудник сервера"
     commands:
       - "ei give %player% shalker2 1"
 
-  ei_shalker_sword:
-    name: "&#F8BEFB&lМеч шалкера"
-    material: NETHERITE_SWORD
+  ei_shalker_legs:
+    name: "&#F8BEFB&lПоножи шалкера"
+    material: NETHERITE_LEGGINGS
     amount: 1
-    price: 680000
+    price: 700000
     level: 9
     lore:
-      - "&#F8BEFB&l┃ &fОсобый меч сервера"
+      - "&#F8BEFB&l┃ &fОсобые поножи сервера"
     commands:
-      - "ei give %player% shalker5 1"
+      - "ei give %player% shalker3 1"
+
+  ei_shalker_boots:
+    name: "&#F8BEFB&lБотинки шалкера"
+    material: NETHERITE_BOOTS
+    amount: 1
+    price: 620000
+    level: 9
+    lore:
+      - "&#F8BEFB&l┃ &fОсобые ботинки сервера"
+    commands:
+      - "ei give %player% shalker4 1"
 
   ei_elytra:
     name: "&#F8BEFB&lОсобые элитры"
     material: ELYTRA
     amount: 1
-    price: 700000
+    price: 780000
     level: 9
     lore:
       - "&#F8BEFB&l┃ &fУлучшенные элитры сервера"
@@ -774,29 +847,62 @@ items:
     name: "&#F8BEFB&lМагический шар I"
     material: FIREWORK_STAR
     amount: 1
-    price: 380000
+    price: 420000
     level: 9
     lore:
       - "&#F8BEFB&l┃ &fМагический шар сервера"
     commands:
       - "shadowci give %player% shar1 1"
 
+  ei_shalker_sword:
+    name: "&#F8BEFB&lМеч шалкера"
+    material: NETHERITE_SWORD
+    amount: 1
+    price: 900000
+    level: 10
+    lore:
+      - "&#F8BEFB&l┃ &fСильнейший меч сервера"
+    commands:
+      - "ei give %player% shalker5 1"
+
+  ei_pickaxe_shalker:
+    name: "&#F8BEFB&lКирка шалкера"
+    material: NETHERITE_PICKAXE
+    amount: 1
+    price: 850000
+    level: 10
+    lore:
+      - "&#F8BEFB&l┃ &fОсобая кирка сервера"
+    commands:
+      - "ei give %player% shalker6 1"
+
   ei_enchant_byr:
     name: "&#F8BEFB&lКнига: особое зачарование"
     material: ENCHANTED_BOOK
     amount: 1
-    price: 520000
+    price: 780000
     level: 10
     lore:
       - "&#F8BEFB&l┃ &fОсобое зачарование сервера"
     commands:
       - "ei give %player% enchant_byr 1"
 
+  ei_enchant_sun:
+    name: "&#F8BEFB&lКнига: Солнечные оковы"
+    material: ENCHANTED_BOOK
+    amount: 1
+    price: 820000
+    level: 10
+    lore:
+      - "&#F8BEFB&l┃ &fОсобое зачарование сервера"
+    commands:
+      - "ei give %player% enchant_sun_shackles 1"
+
   ei_totem5:
     name: "&#F8BEFB&lОсобый тотем: Шалкер"
     material: TOTEM_OF_UNDYING
     amount: 1
-    price: 760000
+    price: 950000
     level: 10
     lore:
       - "&#F8BEFB&l┃ &fСильнейший тотем сервера"
@@ -807,7 +913,7 @@ items:
     name: "&#F8BEFB&lАура защиты от кристаллов"
     material: END_CRYSTAL
     amount: 1
-    price: 820000
+    price: 980000
     level: 10
     lore:
       - "&#F8BEFB&l┃ &fАура сервера"
@@ -818,78 +924,23 @@ items:
     name: "&#F8BEFB&lМагический шар IV"
     material: FIREWORK_STAR
     amount: 1
-    price: 900000
+    price: 1100000
     level: 10
     lore:
       - "&#F8BEFB&l┃ &fСильнейший магический шар"
     commands:
       - "shadowci give %player% shar4 1"
 
-  ei_pickaxe_shalker:
-    name: "&#F8BEFB&lКирка шалкера"
-    material: NETHERITE_PICKAXE
-    amount: 1
-    price: 780000
-    level: 10
-    lore:
-      - "&#F8BEFB&l┃ &fОсобая кирка сервера"
-    commands:
-      - "ei give %player% shalker6 1"
-
-# Наборы. В витрине показываются шалкерами после обычных товаров;
+# Наборы. Показываются шалкерами прямо в витрине, последними в своём уровне;
 # клик по набору (ЛКМ или ПКМ) открывает меню предпросмотра с кнопкой покупки.
-# Открываются на уровнях клана 1, 4, 7 и 10.
+# Уровни 1, 4, 7, 10. Кулдаун покупки набора — не меньше 15 минут (см. config.yml).
 kits:
   starter:
     name: "&#F8BEFB&lНабор «Новичок»"
     material: WHITE_SHULKER_BOX
-    price: 150000
+    price: 180000
     level: 1
-    items:
-      - material: DIAMOND_HELMET
-        amount: 1
-        enchant:
-          - "protection:2"
-          - "unbreaking:2"
-      - material: DIAMOND_CHESTPLATE
-        amount: 1
-        enchant:
-          - "protection:2"
-          - "unbreaking:2"
-      - material: DIAMOND_LEGGINGS
-        amount: 1
-        enchant:
-          - "protection:2"
-          - "unbreaking:2"
-      - material: DIAMOND_BOOTS
-        amount: 1
-        enchant:
-          - "protection:2"
-          - "unbreaking:2"
-          - "feather_falling:2"
-      - material: DIAMOND_SWORD
-        amount: 1
-        enchant:
-          - "sharpness:2"
-          - "fire_aspect:2"
-      - material: BOW
-        amount: 1
-        enchant:
-          - "power:2"
-      - material: ARROW
-        amount: 64
-      - material: GOLDEN_APPLE
-        amount: 8
-      - material: ENDER_PEARL
-        amount: 8
-      - material: COOKED_BEEF
-        amount: 32
-
-  fighter:
-    name: "&#F8BEFB&lНабор «Боец»"
-    material: LIGHT_BLUE_SHULKER_BOX
-    price: 400000
-    level: 4
+    cooldown: 900
     items:
       - material: DIAMOND_HELMET
         amount: 1
@@ -910,30 +961,38 @@ kits:
         amount: 1
         enchant:
           - "protection:3"
-          - "unbreaking:3"
           - "feather_falling:3"
+          - "unbreaking:3"
       - material: DIAMOND_SWORD
         amount: 1
         enchant:
           - "sharpness:3"
+          - "fire_aspect:2"
           - "unbreaking:3"
-      - material: TOTEM_OF_UNDYING
+      - material: BOW
         amount: 1
-      - material: ENDER_PEARL
-        amount: 16
+        enchant:
+          - "power:4"
+          - "unbreaking:3"
+      - material: ARROW
+        amount: 64
       - material: GOLDEN_APPLE
+        amount: 16
+      - material: ENDER_PEARL
         amount: 16
       - material: EXPERIENCE_BOTTLE
         amount: 32
       - material: POTION
         amount: 1
-        potion-type: STRENGTH
+        potion-type: SPEED
+        potion-upgraded: true
 
-  raider:
-    name: "&#F8BEFB&lНабор «Рейдер»"
-    material: PURPLE_SHULKER_BOX
-    price: 900000
-    level: 7
+  fighter:
+    name: "&#F8BEFB&lНабор «Боец»"
+    material: LIGHT_BLUE_SHULKER_BOX
+    price: 520000
+    level: 4
+    cooldown: 1800
     items:
       - material: DIAMOND_HELMET
         amount: 1
@@ -957,37 +1016,48 @@ kits:
         amount: 1
         enchant:
           - "protection:4"
-          - "fire_protection:3"
+          - "feather_falling:4"
           - "unbreaking:3"
           - "mending:1"
       - material: DIAMOND_SWORD
         amount: 1
         enchant:
-          - "sharpness:4"
+          - "sharpness:5"
+          - "fire_aspect:2"
           - "unbreaking:3"
           - "mending:1"
-      - material: TOTEM_OF_UNDYING
-        amount: 3
-      - material: END_CRYSTAL
-        amount: 16
-      - material: OBSIDIAN
+      - material: BOW
+        amount: 1
+        enchant:
+          - "power:5"
+          - "punch:2"
+          - "infinity:1"
+          - "unbreaking:3"
+      - material: ARROW
         amount: 64
+      - material: TOTEM_OF_UNDYING
+        amount: 2
       - material: ENDER_PEARL
         amount: 16
+      - material: GOLDEN_APPLE
+        amount: 32
+      - material: EXPERIENCE_BOTTLE
+        amount: 64
+      - material: POTION
+        amount: 1
+        potion-type: STRENGTH
+        potion-upgraded: true
       - material: POTION
         amount: 1
         potion-type: FIRE_RESISTANCE
-      - material: POTION
-        amount: 1
-        potion-type: SPEED
-    commands:
-      - "ei give %player% arrow1 8"
+        potion-extended: true
 
-  legend:
-    name: "&#F8BEFB&lНабор «Легенда»"
-    material: BLACK_SHULKER_BOX
-    price: 2000000
-    level: 10
+  raider:
+    name: "&#F8BEFB&lНабор «Рейдер»"
+    material: PURPLE_SHULKER_BOX
+    price: 1100000
+    level: 7
+    cooldown: 2700
     items:
       - material: NETHERITE_HELMET
         amount: 1
@@ -1011,6 +1081,7 @@ kits:
         amount: 1
         enchant:
           - "protection:4"
+          - "fire_protection:4"
           - "feather_falling:4"
           - "unbreaking:3"
           - "mending:1"
@@ -1018,9 +1089,90 @@ kits:
         amount: 1
         enchant:
           - "sharpness:5"
+          - "fire_aspect:2"
           - "unbreaking:3"
           - "mending:1"
+      - material: NETHERITE_PICKAXE
+        amount: 1
+        enchant:
+          - "efficiency:5"
+          - "unbreaking:3"
+          - "mending:1"
+      - material: TOTEM_OF_UNDYING
+        amount: 4
+      - material: END_CRYSTAL
+        amount: 32
+      - material: OBSIDIAN
+        amount: 64
+      - material: ENDER_PEARL
+        amount: 16
+      - material: GOLDEN_APPLE
+        amount: 32
+      - material: POTION
+        amount: 1
+        potion-type: FIRE_RESISTANCE
+        potion-extended: true
+      - material: POTION
+        amount: 1
+        potion-type: STRENGTH
+        potion-upgraded: true
+    commands:
+      - "ei give %player% arrow1 8"
+      - "ei give %player% potion_voina 1"
+
+  legend:
+    name: "&#F8BEFB&lНабор «Легенда»"
+    material: BLACK_SHULKER_BOX
+    price: 2500000
+    level: 10
+    cooldown: 3600
+    items:
+      - material: NETHERITE_HELMET
+        amount: 1
+        enchant:
+          - "protection:4"
+          - "unbreaking:3"
+          - "mending:1"
+          - "respiration:3"
+          - "aqua_affinity:1"
+      - material: NETHERITE_CHESTPLATE
+        amount: 1
+        enchant:
+          - "protection:4"
+          - "unbreaking:3"
+          - "mending:1"
+          - "thorns:3"
+      - material: NETHERITE_LEGGINGS
+        amount: 1
+        enchant:
+          - "protection:4"
+          - "unbreaking:3"
+          - "mending:1"
+          - "blast_protection:4"
+      - material: NETHERITE_BOOTS
+        amount: 1
+        enchant:
+          - "protection:4"
+          - "feather_falling:4"
+          - "unbreaking:3"
+          - "mending:1"
+          - "depth_strider:3"
+      - material: NETHERITE_SWORD
+        amount: 1
+        enchant:
+          - "sharpness:5"
           - "fire_aspect:2"
+          - "looting:3"
+          - "sweeping:3"
+          - "unbreaking:3"
+          - "mending:1"
+      - material: NETHERITE_AXE
+        amount: 1
+        enchant:
+          - "sharpness:5"
+          - "efficiency:5"
+          - "unbreaking:3"
+          - "mending:1"
       - material: ELYTRA
         amount: 1
         enchant:
@@ -1029,15 +1181,16 @@ kits:
       - material: FIREWORK_ROCKET
         amount: 64
       - material: TOTEM_OF_UNDYING
-        amount: 5
+        amount: 8
       - material: END_CRYSTAL
-        amount: 32
+        amount: 64
       - material: OBSIDIAN
         amount: 64
       - material: GOLDEN_APPLE
-        amount: 32
+        amount: 64
       - material: EXPERIENCE_BOTTLE
         amount: 64
     commands:
       - "ei give %player% totem1 1"
       - "ei give %player% fall_protection_aura 1"
+      - "ei give %player% shalker5 1"
