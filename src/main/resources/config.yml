@@ -1,0 +1,168 @@
+points-for-kill-mob: 0.001
+exp-for-kill-mob: 0.001
+points-for-kill: 0.01
+exp-for-kill: 0.01
+points-for-block: 0.01
+exp-for-block: 0.01
+clan_name_min_length: 3
+clan_name_max_length: 6
+clan_create_price: 50000
+edit_item_price: 29
+expForKill: 1
+pointsForKill: 1
+inviteExit: 15
+timeForKillReload: 1200
+
+blockedNames:
+  - "25565"
+  - "freedon"
+  - "nurik"
+  - "energy"
+  - "rogalik"
+  - "rlfake"
+  - "aurix"
+  - "raid"
+  - "hell"
+  - "unix"
+  - "cake"
+  - "brain"
+
+nameAllowedChars: "abcdefghijklmnopqrstuvwxyz1234567890_йцукенгшщзхъфывапролджэячсмитьбюQWERTYUIOPASDFGHJKLZXCVBNMЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЧЯСМИТЬБЮ"
+
+noClanPlaceholder: "&#F8BEFBБез клана"
+
+messages:
+  configReload:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aКонфиг перезагружен"
+  blockedName:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cЗапрещённое название"
+  uncorrectUsage:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cНеправильное использование команды"
+  targetInvited:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fПриглашение в клан &#F8BEFB%clan% &fот &#F8BEFB%player%"
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fВведите &#F8BEFB/clan accept &fдля принятия"
+  createdSuccessfully:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aКлан успешно создан!"
+  uncorrectNumber:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cНекорректное число"
+  admUsage:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &f/elytrixclan remove <клан>"
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &f/elytrixclan set <клан> points/exp <число>"
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &f/elytrixclan reload"
+  usage:
+    - ""
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &#F8BEFBДоступные команды"
+    - ""
+    - "  &#F8BEFB/clan create <название> &7— &fСоздать клан"
+    - "  &#F8BEFB/clan accept &7— &fПринять приглашение"
+    - "  &#F8BEFB/clan invite <игрок> &7— &fПригласить игрока"
+    - "  &#F8BEFB/clan kick <игрок> &7— &fВыгнать игрока"
+    - "  &#F8BEFB/clan promote <игрок> &7— &fПовысить до модератора"
+    - "  &#F8BEFB/clan demote <игрок> &7— &fПонизить до участника"
+    - "  &#F8BEFB/clan leave &7— &fПокинуть клан"
+    - "  &#F8BEFB/clan disband &7— &fРаспустить клан"
+    - "  &#F8BEFB/clan menu &7— &fМеню клана"
+    - "  &#F8BEFB/clan shop &7— &fМагазин клана"
+    - "  &#F8BEFB/clan home &7— &fКлановый дом"
+    - "  &#F8BEFB/clan sethome &7— &fУстановить дом"
+    - "  &#F8BEFB/clan delhome &7— &fУдалить дом"
+    - "  &#F8BEFB/clan pvp &7— &fВкл/Выкл PvP"
+    - "  &#F8BEFB/clan glow &7— &fПодсветка союзников"
+    - "  &#F8BEFB/clan chat <сообщение> &7— &fКлановый чат"
+    - "  &#F8BEFB/clan info [клан] &7— &fИнформация о клане"
+    - ""
+  clanNotFound:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cКлан не найден"
+  createUsage:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИспользование: &#F8BEFB/clan create <название>"
+  alreadyInClan:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cВы уже состоите в клане"
+  unvalidName:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cНекорректное название клана"
+  unvalidLength:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cДлина названия: от %min_length% до %max_length% символов"
+  alreadyCreated:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cКлан с таким названием уже существует"
+  noMoney:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cНедостаточно средств. Требуется: &#F8BEFB%price%"
+  withoutInvite:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cВас никто не приглашал"
+  clanDeleted:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cПредложение неактуально. Клан удалён"
+  playersLimit:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cДостигнут лимит участников"
+  newMember:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИгрок &#F8BEFB%player% &fприсоединился к клану"
+  glowRemoved:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fПодсветка &cудалена"
+  glowPvpConflict:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cПодсветка недоступна пока включён PvP в клане"
+  withoutClan:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cВы не состоите в клане"
+  leaderCantLeave:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cЛидер не может покинуть клан"
+  leaveClan:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИгрок &#F8BEFB%player% &fпокинул клан"
+  playerLeft:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИгрок &#F8BEFB%player% &fпокинул клан"
+  withoutHome:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cКлановый дом не установлен"
+  inviteUsage:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИспользование: &#F8BEFB/clan invite <игрок>"
+  noPermission:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cНедостаточно прав"
+  playerNotFound:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cИгрок не найден"
+  notDoYourself:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cВы не можете сделать это с собой"
+  targetInClan:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cИгрок уже в клане"
+  successInvite:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aПриглашение отправлено"
+  kickUsage:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИспользование: &#F8BEFB/clan kick <игрок>"
+  notAccess:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cНедостаточно прав"
+  youKicked:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cВы были кикнуты из клана"
+  playerKicked:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИгрок &#F8BEFB%target% &cкикнут &fиз клана"
+  clan_pvp_disable:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fPvP между соклановцами &aвыключен"
+  clan_pvp_enable:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fPvP между соклановцами &cвключен"
+  homeSetted:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИгрок &#F8BEFB%player% &aустановил &fклановый дом"
+  homeDeleted:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИгрок &#F8BEFB%player% &cудалил &fклановый дом"
+  promoteUsage:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИспользование: &#F8BEFB/clan <promote|demote> <игрок>"
+  alreadyHasPromote:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cУ игрока уже нужная роль"
+  promoted:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aРоль игрока изменена"
+  demoteUsage:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИспользование: &#F8BEFB/clan <promote|demote> <игрок>"
+  notModerator:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cУ игрока уже нужная роль"
+  demoted:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aРоль игрока изменена"
+  noPoints:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cНедостаточно поинтов"
+  buyItem:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aПредмет успешно куплен!"
+  notPoints:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cНедостаточно поинтов"
+  disbandConfirm:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fДля подтверждения удаления клана"
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fВведите в чат: &#F8BEFB%clan%"
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &7Время: 30 секунд"
+  disbandCancelled:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cУдаление клана отменено"
+  clanDisbanded:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aКлан распущен!"
+  lvlUp:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aКлан достиг &#F8BEFB%lvl% &aуровня!"
+  lvlDown:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cКлан понижен до &#F8BEFB%lvl% &cуровня"
+  noPvp: "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cВы не можете ударить соклановца!"

@@ -1,0 +1,21 @@
+name: ElytrixClans
+version: '${project.version}'
+main: ru.rooyzee.elytrixclans.Main
+api-version: '1.16'
+authors: [rooyzee]
+description: кланы
+website: https://elytrix.pw
+depend: [Vault, PlaceholderAPI, ProtocolLib]
+permissions:
+  elytrixclans.discount:
+    default: false
+  elytrixclans.admin:
+    default: op
+commands:
+  clan:
+    aliases:
+      - clan
+  elytrixclan:
+    aliases:
+      - elytrixclan
+    permission: elytrixclans.admin

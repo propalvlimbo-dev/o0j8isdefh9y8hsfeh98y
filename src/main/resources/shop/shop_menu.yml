@@ -1,0 +1,27 @@
+menus:
+  main:
+    title: "&#F8BEFB&lКлановый магазин"
+    buttons:
+      things:
+        material: DIAMOND_SWORD
+        slot: 21
+        name: "&7« &#F8BEFBРесурсы &7»"
+        lore:
+          - "&#F8BEFB&l┃ "
+          - "&#F8BEFB&l┃ &fПокупка ресурсов: &#F8BEFBДоступно"
+          - "&#F8BEFB&l┃ &fКатегории: &#F8BEFBШалкеры, спавнеры, вещи"
+          - "&#F8BEFB&l┃ "
+          - "&7● &fНажмите для перехода"
+        action: things
+      kits:
+        material: DIAMOND_CHESTPLATE
+        slot: 23
+        name: "&7« &#F8BEFBКиты &7»"
+        lore:
+          - "&#F8BEFB&l┃ "
+          - "&#F8BEFB&l┃ &fНаборы снаряжения: &#F8BEFBДоступно"
+          - "&#F8BEFB&l┃ &fПросмотр содержимого: &#F8BEFBЛКМ"
+          - "&#F8BEFB&l┃ &fКупить: &#F8BEFBПКМ"
+          - "&#F8BEFB&l┃ "
+          - "&7● &fНажмите для перехода"
+        action: kits

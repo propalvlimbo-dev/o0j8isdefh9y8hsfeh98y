@@ -1,0 +1,215 @@
+spawner:
+  cow_egg:
+    name: "&fЯйцо призыва коровы"
+    material: "COW_SPAWN_EGG"
+    slot: 20
+    price: 549
+    count: 3
+    lore:
+      - "&#F8BEFB&l┃ "
+      - "&#F8BEFB&l┃ &fЦена: &#F8BEFB549 &7поинтов"
+      - "&#F8BEFB&l┃ "
+      - "&7● &fНажмите для покупки"
+  chicken_egg:
+    name: "&fЯйцо призыва курицы"
+    material: "CHICKEN_SPAWN_EGG"
+    slot: 21
+    price: 394
+    count: 3
+    lore:
+      - "&#F8BEFB&l┃ "
+      - "&#F8BEFB&l┃ &fЦена: &#F8BEFB394 &7поинтов"
+      - "&#F8BEFB&l┃ "
+      - "&7● &fНажмите для покупки"
+  spawner_1:
+    name: "&fРассадник"
+    material: "SPAWNER"
+    slot: 22
+    price: 179
+    count: 1
+    lore:
+      - "&#F8BEFB&l┃ "
+      - "&#F8BEFB&l┃ &fКоличество: &#F8BEFB1"
+      - "&#F8BEFB&l┃ &fЦена: &#F8BEFB179 &7поинтов"
+      - "&#F8BEFB&l┃ "
+      - "&7● &fНажмите для покупки"
+  spawner_3:
+    name: "&fРассадник x3"
+    material: "SPAWNER"
+    slot: 23
+    price: 289
+    count: 3
+    lore:
+      - "&#F8BEFB&l┃ "
+      - "&#F8BEFB&l┃ &fКоличество: &#F8BEFB3"
+      - "&#F8BEFB&l┃ &fЦена: &#F8BEFB289 &7поинтов"
+      - "&#F8BEFB&l┃ "
+      - "&7● &fНажмите для покупки"
+  spawner_6:
+    name: "&fРассадник x6"
+    material: "SPAWNER"
+    slot: 24
+    price: 499
+    count: 6
+    lore:
+      - "&#F8BEFB&l┃ "
+      - "&#F8BEFB&l┃ &fКоличество: &#F8BEFB6"
+      - "&#F8BEFB&l┃ &fЦена: &#F8BEFB499 &7поинтов"
+      - "&#F8BEFB&l┃ "
+      - "&7● &fНажмите для покупки"
+
+things:
+  crystall:
+    name: "&#F8BEFBКристалл Энда"
+    material: "END_CRYSTAL"
+    slot: 20
+    price: 29
+    count: 1
+    lore:
+      - "&#F8BEFB&l┃ "
+      - "&#F8BEFB&l┃ &fЦена: &#F8BEFB29 &7поинтов"
+      - "&#F8BEFB&l┃ "
+      - "&7● &fНажмите для покупки"
+  golden_apple:
+    name: "&#F8BEFBЗолотое яблоко"
+    material: "GOLDEN_APPLE"
+    slot: 21
+    price: 69
+    count: 8
+    lore:
+      - "&#F8BEFB&l┃ "
+      - "&#F8BEFB&l┃ &fЦена: &#F8BEFB69 &7поинтов"
+      - "&#F8BEFB&l┃ "
+      - "&7● &fНажмите для покупки"
+  elytra:
+    name: "&#F8BEFBЭлитры"
+    material: "ELYTRA"
+    slot: 22
+    price: 399
+    count: 1
+    lore:
+      - "&#F8BEFB&l┃ "
+      - "&#F8BEFB&l┃ &fЦена: &#F8BEFB399 &7поинтов"
+      - "&#F8BEFB&l┃ "
+      - "&7● &fНажмите для покупки"
+  arrow_damage:
+    name: "&fСтрела вреда"
+    material: "TIPPED_ARROW"
+    slot: 23
+    price: 69
+    count: 32
+    effect: "HARM"
+    amplifier: 2
+    duration: 1
+    lore:
+      - "&#F8BEFB&l┃ "
+      - "&#F8BEFB&l┃ &fЭффект: &cМоментальный урон II"
+      - "&#F8BEFB&l┃ &fЦена: &#F8BEFB69 &7поинтов"
+      - "&#F8BEFB&l┃ "
+      - "&7● &fНажмите для покупки"
+  totem:
+    name: "&#F8BEFBТотем бессмертия"
+    material: "TOTEM_OF_UNDYING"
+    slot: 24
+    price: 65
+    count: 1
+    lore:
+      - "&#F8BEFB&l┃ "
+      - "&#F8BEFB&l┃ &fЦена: &#F8BEFB65 &7поинтов"
+      - "&#F8BEFB&l┃ "
+      - "&7● &fНажмите для покупки"
+
+shulker:
+  shulker_white:
+    name: "&#F8BEFBШалкер"
+    material: "WHITE_SHULKER_BOX"
+    slot: 20
+    price: 29
+    count: 1
+    lore:
+      - "&#F8BEFB&l┃ "
+      - "&#F8BEFB&l┃ &fЦена: &#F8BEFB29 &7поинтов"
+      - "&#F8BEFB&l┃ "
+      - "&7● &fНажмите для покупки"
+  shulker_red:
+    name: "&#F8BEFBШалкер"
+    material: "RED_SHULKER_BOX"
+    slot: 21
+    price: 29
+    count: 1
+    lore:
+      - "&#F8BEFB&l┃ "
+      - "&#F8BEFB&l┃ &fЦена: &#F8BEFB29 &7поинтов"
+      - "&#F8BEFB&l┃ "
+      - "&7● &fНажмите для покупки"
+  shulker_blue:
+    name: "&#F8BEFBШалкер"
+    material: "BLUE_SHULKER_BOX"
+    slot: 22
+    price: 29
+    count: 1
+    lore:
+      - "&#F8BEFB&l┃ "
+      - "&#F8BEFB&l┃ &fЦена: &#F8BEFB29 &7поинтов"
+      - "&#F8BEFB&l┃ "
+      - "&7● &fНажмите для покупки"
+
+kits:
+  starter:
+    name: "&aСтартер"
+    material: LEATHER_CHESTPLATE
+    slot: 21
+    price: 100
+    items:
+      - material: STONE_SWORD
+        amount: 1
+      - material: STONE_PICKAXE
+        amount: 1
+      - material: BREAD
+        amount: 16
+      - material: LEATHER_HELMET
+        amount: 1
+      - material: LEATHER_CHESTPLATE
+        amount: 1
+      - material: LEATHER_LEGGINGS
+        amount: 1
+      - material: LEATHER_BOOTS
+        amount: 1
+  warrior:
+    name: "&6Воин"
+    material: IRON_CHESTPLATE
+    slot: 22
+    price: 300
+    items:
+      - material: IRON_SWORD
+        amount: 1
+      - material: IRON_HELMET
+        amount: 1
+      - material: IRON_CHESTPLATE
+        amount: 1
+      - material: IRON_LEGGINGS
+        amount: 1
+      - material: IRON_BOOTS
+        amount: 1
+      - material: GOLDEN_APPLE
+        amount: 4
+  king:
+    name: "&cКороль"
+    material: DIAMOND_CHESTPLATE
+    slot: 23
+    price: 800
+    items:
+      - material: DIAMOND_SWORD
+        amount: 1
+      - material: DIAMOND_HELMET
+        amount: 1
+      - material: DIAMOND_CHESTPLATE
+        amount: 1
+      - material: DIAMOND_LEGGINGS
+        amount: 1
+      - material: DIAMOND_BOOTS
+        amount: 1
+      - material: ENCHANTED_GOLDEN_APPLE
+        amount: 2
+      - material: ENDER_PEARL
+        amount: 8
