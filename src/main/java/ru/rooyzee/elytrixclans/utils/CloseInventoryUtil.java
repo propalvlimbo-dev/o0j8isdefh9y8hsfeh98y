@@ -9,6 +9,7 @@ import ru.rooyzee.elytrixclans.function.impl.glow.GlowFunction;
 import ru.rooyzee.elytrixclans.function.impl.info.InfoFunction;
 import ru.rooyzee.elytrixclans.function.impl.info.MemberInventory;
 import ru.rooyzee.elytrixclans.function.impl.shop.ShopFunction;
+import ru.rooyzee.elytrixclans.function.impl.shop.admin.ShopEditInventory;
 import ru.rooyzee.elytrixclans.function.impl.shop.holder.kits.KitPreviewInventory;
 
 public class CloseInventoryUtil {
@@ -43,6 +44,8 @@ public class CloseInventoryUtil {
                 || holder instanceof ShopFunction
                 || holder instanceof GlowFunction
                 || holder instanceof MemberInventory
-                || holder instanceof KitPreviewInventory;
+                || holder instanceof KitPreviewInventory
+                // Редактор закрываем тоже: на закрытии он сохраняет правки в файл.
+                || holder instanceof ShopEditInventory;
     }
 }

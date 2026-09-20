@@ -19,8 +19,8 @@ import ru.rooyzee.elytrixclans.status.Status;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
 import ru.rooyzee.elytrixclans.utils.LevelUtil;
 import ru.rooyzee.elytrixclans.utils.MenuUtil;
+import ru.rooyzee.elytrixclans.utils.NBTUtil;
 import ru.rooyzee.elytrixclans.utils.PlayerHeadCache;
-import ru.rooyzee.elytrixclans.utils.ValidatorUtil;
 
 /**
  * Меню клана: шапка с информацией и состав.
@@ -36,6 +36,9 @@ public class InfoFunction implements InventoryHolder {
     /** Кто открыл меню: от него зависит, показывать ли подсказку об управлении. */
     private final Player viewer;
     private final Clan clan;
+
+    /** Ник участника пишем прямо в предмет: разбирать его обратно из имени ненадёжно. */
+    public static final String NBT_MEMBER = "clanMemberName";
 
     private static final int[] MEMBER_SLOTS = {
             11, 12, 13, 14, 15,
@@ -102,6 +105,12 @@ public class InfoFunction implements InventoryHolder {
             String prefix = isOwner ? "&#F8BEFB&l★ &#F8BEFB" : "&#F8BEFB";
             PlayerHeadCache.fillHead(inventory, MEMBER_SLOTS[i], member.getName(), member.getPlayer(),
                     HexUtil.translateHexColorCodes(prefix + member.getName()), lore);
+            // Ник в NBT: по нему клик находит участника даже со звездой и цветами в имени.
+            ItemStack head = inventory.getItem(MEMBER_SLOTS[i]);
+            if (head != null) {
+                NBTUtil.addItemNBT(head, NBT_MEMBER, member.getName());
+                inventory.setItem(MEMBER_SLOTS[i], head);
+            }
             i++;
         }
 
@@ -146,22 +155,18 @@ public class InfoFunction implements InventoryHolder {
         Player player = (Player) event.getWhoClicked();
         ItemStack item = event.getCurrentItem();
         if (item == null || item.getType() != Material.PLAYER_HEAD) return;
-        ItemMeta clickedMeta = item.getItemMeta();
-        if (clickedMeta == null || clickedMeta.getDisplayName() == null) return;
-        // В имени лидера есть звезда — убираем её вместе с цветами, иначе ник не найдётся.
-        String name = ValidatorUtil.removeAllColors(clickedMeta.getDisplayName()).replace("★", "").trim();
-        if (name.isEmpty()) return;
-        ClanMember member = Main.getInstance().getClanManager().getPlayerClanMember(name);
+        String name = NBTUtil.getNBTvalue(item, NBT_MEMBER);
+        if (name == null || name.isEmpty()) return;
+        // Ищем участника в ЭТОМ клане: getPlayerClanMember искал бы по всем кланам сразу.
+        ClanMember member = Main.getInstance().getClanManager().getMember(clan, name);
         if (member == null) return;
 
         // Карточка участника — инструмент лидера. Обычному игроку клик по голове
         // ничего не открывает: у него там нет ни одного доступного действия.
-        Clan actual = Main.getInstance().getClanManager().getPlayerClan(player);
-        ClanMember clicker = actual != null
-                ? Main.getInstance().getClanManager().getMember(actual, player.getName()) : null;
+        ClanMember clicker = Main.getInstance().getClanManager().getMember(clan, player.getName());
         boolean leader = clicker != null
                 && ClanRoles.LEADER.equals(ClanRoles.normalize(clicker.getRole().getName()));
-        if (!leader || actual != clan) return;
+        if (!leader) return;
         if (member.getName() == null) return;
         if (member.getName().equalsIgnoreCase(player.getName())) return;
         if (member.getName().equalsIgnoreCase(clan.getOwner())) return;

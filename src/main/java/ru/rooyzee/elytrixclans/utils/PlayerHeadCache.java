@@ -184,17 +184,7 @@ public final class PlayerHeadCache {
             inventory.setItem(slot, item);
 
             // Заодно запоминаем болванку, чтобы следующее открытие меню было бесплатным.
-            String key = key(name);
-            if (!SKULLS.containsKey(key)) {
-                ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
-                ItemMeta skullMeta = skull.getItemMeta();
-                if (skullMeta instanceof SkullMeta) {
-                    applyOwner((SkullMeta) skullMeta, player);
-                    skull.setItemMeta(skullMeta);
-                    if (SKULLS.size() >= MAX_SKULL_CACHE) SKULLS.clear();
-                    SKULLS.put(key, skull);
-                }
-            }
+            buildAndCache(name, player);
         } catch (Throwable ignored) {
         }
     }
@@ -208,18 +198,23 @@ public final class PlayerHeadCache {
         ItemStack cached = SKULLS.get(key);
         if (cached != null) return cached;
 
-        OfflinePlayer owner = onlinePlayer != null ? onlinePlayer : known(name);
-        if (owner == null) return null;
-        // В «медленном» режиме синхронно готовим головы только для онлайн-игроков:
-        // у них профиль уже загружен сервером и стоит копейки.
-        if (!syncOwnerAllowed && onlinePlayer == null) return null;
+        // Владельца головы ОФФЛАЙН-игрока в главном потоке не ставим никогда.
+        // setOwningPlayer подтягивает GameProfile: на оффлайн-игроке это чтение файла профиля,
+        // а на некоторых сборках — запрос к Mojang. Двадцать четыре таких вызова подряд и
+        // давали фриз на /clan menu. Голова появится через очередь с бюджетом по времени.
+        if (onlinePlayer == null) {
+            OfflinePlayer knownOwner = known(name);
+            if (knownOwner != null) enqueueApply(() -> buildAndCache(name, knownOwner));
+            return null;
+        }
 
         ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
         ItemMeta itemMeta = skull.getItemMeta();
         if (!(itemMeta instanceof SkullMeta)) return null;
 
+        // Профиль онлайн-игрока уже загружен сервером, поэтому здесь это дёшево.
         long start = System.nanoTime();
-        applyOwner((SkullMeta) itemMeta, owner);
+        applyOwner((SkullMeta) itemMeta, onlinePlayer);
         skull.setItemMeta(itemMeta);
         long elapsed = System.nanoTime() - start;
 
@@ -233,9 +228,26 @@ public final class PlayerHeadCache {
             }
         }
 
+        put(name, onlinePlayer);
+        cacheSkull(key, skull);
+        return skull;
+    }
+
+    /** Сборка головы вне «часа пик»: вызывается только из очереди с бюджетом времени. */
+    private static void buildAndCache(String name, OfflinePlayer owner) {
+        String key = key(name);
+        if (owner == null || SKULLS.containsKey(key)) return;
+        ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
+        ItemMeta meta = skull.getItemMeta();
+        if (!(meta instanceof SkullMeta)) return;
+        applyOwner((SkullMeta) meta, owner);
+        skull.setItemMeta(meta);
+        cacheSkull(key, skull);
+    }
+
+    private static void cacheSkull(String key, ItemStack skull) {
         if (SKULLS.size() >= MAX_SKULL_CACHE) SKULLS.clear();
         SKULLS.put(key, skull);
-        return skull;
     }
 
     /**

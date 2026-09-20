@@ -12,14 +12,16 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import ru.rooyzee.elytrixclans.Main;
 import ru.rooyzee.elytrixclans.clans.Clan;
+import ru.rooyzee.elytrixclans.function.impl.shop.admin.ShopEditInventory;
 import ru.rooyzee.elytrixclans.utils.ConfigUtil;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
 
 /**
  * Админ-команды.
  *
- * Редактор магазина (/elytrixclan edit) убран: ассортимент настраивается только через
- * shop/shop_item.yml + /elytrixclan reload.
+ * /elytrixclan edititem — меню, куда складывают предметы прямо из инвентаря: что положил,
+ * то и продаётся. Цены при этом правятся в shop/prices.yml, а не в меню.
+ * Остальной ассортимент по-прежнему настраивается через shop/shop_item.yml + reload.
  *
  * /elytrixclan addexp — публичная точка начисления опыта для внешних плагинов (ивент
  * «Талисман» дергает её командой от консоли, пока нет прямого хука).
@@ -40,12 +42,24 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
 
         String sub = args[0].toLowerCase(Locale.ROOT);
 
-        if (sub.equals("reload")) return handleReload(sender);
+        if (sub.equals("edititem")) return handleEditItem(sender);
+        else if (sub.equals("reload")) return handleReload(sender);
         else if (sub.equals("set")) return handleSet(sender, args);
         else if (sub.equals("remove")) return handleRemove(sender, args);
         else if (sub.equals("addexp")) return handleAddExp(sender, args);
 
         usage(sender);
+        return false;
+    }
+
+    private boolean handleEditItem(CommandSender sender) {
+        if (!(sender instanceof Player)) {
+            sender.sendMessage(HexUtil.translateHexColorCodes(
+                    "&f☁ &7» &cРедактор магазина доступен только из игры"));
+            return false;
+        }
+        Player player = (Player) sender;
+        player.openInventory(new ShopEditInventory(player).getInventory());
         return false;
     }
 
@@ -138,12 +152,13 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan addexp <player> <n> player"));
         sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan remove <clan>"));
         sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan reload"));
+        sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan edititem &7— меню добавления товаров"));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return filter(Arrays.asList("set", "remove", "reload", "addexp"), args[0]);
+            return filter(Arrays.asList("set", "remove", "reload", "addexp", "edititem"), args[0]);
         }
         if (args.length == 2) {
             List<String> options = new ArrayList<>();

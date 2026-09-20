@@ -23,22 +23,25 @@ import ru.rooyzee.elytrixclans.utils.NBTUtil;
 import ru.rooyzee.elytrixclans.utils.PlayerHeadCache;
 
 /**
- * Карточка участника клана.
+ * Карточка участника клана: то, что открывается лидеру по клику на голову в /clan menu.
  *
- * Для обычного игрока это просто справка. Лидеру дополнительно доступны два действия:
- * выдать участнику роль и выгнать его из клана. Отдельных тумблеров прав больше нет —
- * права определяются ролью (см. ClanRoles), поэтому настраивать их по одному не нужно.
+ * Оформление намеренно повторяет /clan menu — те же 54 слота, та же рамка из стекла,
+ * голова в слоте 4, кнопка выхода в 45. Отличие одно: вместо состава клана здесь
+ * два действия лидера — выдать роль и кикнуть.
+ *
+ * Для обычного игрока это меню не открывается вовсе: у него тут нет ни одного действия.
  */
 public class MemberInventory implements InventoryHolder {
 
     private static final String NBT_MEMBER_ACTION = "clanMemberAction";
-    /** Слоты ролей, которые лидер может выдать вручную. */
+
+    /** Слоты ролей — по центру, ровно там же, где в /clan menu идёт второй ряд состава. */
     private static final int SLOT_ROOKIE = 20;
     private static final int SLOT_TRAINEE = 21;
     private static final int SLOT_VETERAN = 22;
     private static final int SLOT_MODERATOR = 23;
     private static final int SLOT_LEADER = 24;
-    private static final int SLOT_KICK = 53;
+    private static final int SLOT_KICK = 40;
 
     private final Inventory inventory;
     /** Имя участника: обработчик кликов достаёт по нему актуальные данные. */
@@ -55,7 +58,7 @@ public class MemberInventory implements InventoryHolder {
         inventory = Bukkit.createInventory(this, 54,
                 HexUtil.translateHexColorCodes("&#F8BEFB&lУчастник клана"));
 
-        // Рамку ставим первой: иначе applyLayout затирает голову и кнопки.
+        // Та же рамка, что и в меню клана: меню выглядит единообразно.
         MenuUtil.applyLayout(inventory);
 
         Status status = ClanMember.getStatus(clanMember);
@@ -71,7 +74,7 @@ public class MemberInventory implements InventoryHolder {
         headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
         headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fВклад в клан: &#F8BEFB"
                 + round(clanMember.getLevel()) + " опыта"));
-        // Пока роль растёт сама — показываем, сколько осталось до следующей ступени.
+        // Автоматические роли растут сами — показываем, сколько осталось до следующей.
         if (!ClanRoles.isManual(role)) {
             String next = ClanRoles.nextAutoRole(clanMember.getLevel());
             if (next != null) {
@@ -79,12 +82,13 @@ public class MemberInventory implements InventoryHolder {
                         + "&f: &#F8BEFB" + round(ClanRoles.expToNextRole(clanMember.getLevel())) + " опыта"));
             }
         }
+        headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
         PlayerHeadCache.fillHead(inventory, 4, clanMember.getName(), clanMember.getPlayer(),
                 HexUtil.translateHexColorCodes("&#F8BEFB" + clanMember.getName()), headLore);
 
         inventory.setItem(45, MenuUtil.createBackButton());
 
-        // Панель управления — только лидеру и только в чужой карточке.
+        // Управление — только лидеру и только в чужой карточке (не в своей и не владельца).
         Clan clan = Main.getInstance().getClanManager().getPlayerClan(clanMember.getName());
         ClanMember viewerMember = viewer != null && clan != null
                 ? Main.getInstance().getClanManager().getMember(clan, viewer.getName())
@@ -98,7 +102,7 @@ public class MemberInventory implements InventoryHolder {
 
         if (!leader || targetIsOwner || self) return;
 
-        inventory.setItem(3, sectionLabel());
+        inventory.setItem(13, sectionLabel());
 
         roleButton(SLOT_ROOKIE, Material.LEATHER_BOOTS, ClanRoles.ROOKIE, role,
                 "Только бой за клан, магазин закрыт");
@@ -113,7 +117,7 @@ public class MemberInventory implements InventoryHolder {
 
         ItemStack kickBtn = button(Material.RED_DYE, "&7« &cКикнуть игрока &7»",
                 "Удалить из клана: &cБезвозвратно", "Нажмите для кика", null);
-        NBTUtil.addItemNBT(kickBtn, "barrierItem", "");
+        NBTUtil.addItemNBT(kickBtn, NBT_MEMBER_ACTION, "kick");
         inventory.setItem(SLOT_KICK, kickBtn);
     }
 
@@ -195,10 +199,16 @@ public class MemberInventory implements InventoryHolder {
             return;
         }
 
+        String action = NBTUtil.getNBTvalue(clickedItem, NBT_MEMBER_ACTION);
+        if (action == null) return;
+
         // Права проверяем на каждый клик: меню могло провисеть открытым после смены роли.
         ClanMember clickerMember = Main.getInstance().getClanManager().getMember(clan, clicker.getName());
         if (clickerMember == null) return;
-        if (!ClanRoles.LEADER.equals(ClanRoles.normalize(clickerMember.getRole().getName()))) return;
+        if (!ClanRoles.LEADER.equals(ClanRoles.normalize(clickerMember.getRole().getName()))) {
+            ConfigUtil.sendMessage(clicker, "messages.onlyOwnerRole", null);
+            return;
+        }
         if (clanMember.getName().equalsIgnoreCase(clicker.getName())) {
             ConfigUtil.sendMessage(clicker, "messages.notDoYourself", null);
             return;
@@ -208,13 +218,12 @@ public class MemberInventory implements InventoryHolder {
             return;
         }
 
-        String action = NBTUtil.getNBTvalue(clickedItem, NBT_MEMBER_ACTION);
-        if (action != null && action.startsWith("role:")) {
+        if (action.startsWith("role:")) {
             applyRole(clicker, clan, clanMember, action.substring("role:".length()));
             return;
         }
 
-        if (NBTUtil.hasItemNBT(clickedItem, "barrierItem")) {
+        if ("kick".equals(action)) {
             Main.getInstance().getClanManager().kickPlayer(clan, clanMember);
             if (clanMember.getPlayer() != null && clanMember.getPlayer().isOnline()) {
                 ConfigUtil.sendMessage(clanMember.getPlayer(), "messages.youKicked",

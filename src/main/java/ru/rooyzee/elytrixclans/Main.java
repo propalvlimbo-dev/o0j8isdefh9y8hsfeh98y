@@ -30,6 +30,7 @@ import ru.rooyzee.elytrixclans.listener.InventoryDragListener;
 import ru.rooyzee.elytrixclans.listener.InviteListener;
 import ru.rooyzee.elytrixclans.listener.PlayerDeathListener;
 import ru.rooyzee.elytrixclans.listener.PvpListener;
+import ru.rooyzee.elytrixclans.listener.ShopEditListener;
 import ru.rooyzee.elytrixclans.listener.kill.KillCooldownStorage;
 import ru.rooyzee.elytrixclans.placeholder.ClanPlaceholder;
 import ru.rooyzee.elytrixclans.utils.CloseInventoryUtil;
@@ -128,6 +129,7 @@ public final class Main extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new PvpListener(), this);
         Bukkit.getPluginManager().registerEvents(new DisbandChatListener(), this);
         Bukkit.getPluginManager().registerEvents(new ArmorUpdateListener(), this);
+        Bukkit.getPluginManager().registerEvents(new ShopEditListener(), this);
 
         getLogger().info("ElytrixClans loaded successfully");
         // Маркер сборки: если его нет в логе запуска, jar не обновился.
