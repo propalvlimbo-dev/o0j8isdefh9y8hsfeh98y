@@ -143,6 +143,46 @@ public class ClanMember implements ConfigurationSerializable {
         }
     }
 
+    // Списки скрытых игроков кэшируются на секунду: /clan menu считает статус для каждого из
+    // 24 участников, и раньше это давало до 48 рефлексивных вызовов в Essentials/CMI за одно
+    // открытие меню — заметный фриз главного потока на заполненном клане.
+    private static final long VANISH_CACHE_MS = 1000L;
+    private static volatile long vanishCachedAt = 0L;
+    private static volatile Collection<?> essentialsVanishedCache;
+    private static volatile Collection<?> cmiVanishedCache;
+
+    private static void refreshVanishCache() {
+        long now = System.currentTimeMillis();
+        if (now - vanishCachedAt < VANISH_CACHE_MS) return;
+        vanishCachedAt = now;
+
+        Collection<?> essentials = null;
+        try {
+            Method method = essentialsVanishedMethod;
+            Object instance = essentialsInstance;
+            if (method != null && instance != null) {
+                Object result = method.invoke(instance);
+                if (result instanceof Collection) essentials = (Collection<?>) result;
+            }
+        } catch (Throwable ignored) {
+        }
+        essentialsVanishedCache = essentials;
+
+        Collection<?> cmi = null;
+        try {
+            Object instance = cmiInstance;
+            Method vanishManagerMethod = cmiGetVanishManager;
+            Method allVanishedMethod = cmiGetAllVanished;
+            if (instance != null && vanishManagerMethod != null && allVanishedMethod != null) {
+                Object vanishManager = vanishManagerMethod.invoke(instance);
+                Object vanished = allVanishedMethod.invoke(vanishManager);
+                if (vanished instanceof Collection) cmi = (Collection<?>) vanished;
+            }
+        } catch (Throwable ignored) {
+        }
+        cmiVanishedCache = cmi;
+    }
+
     public static Status getStatus(ClanMember member) {
         if (member == null) return Status.OFFLINE;
         Player player = member.getPlayer();
@@ -151,30 +191,17 @@ public class ClanMember implements ConfigurationSerializable {
         }
 
         probeVanishHooks();
+        refreshVanishCache();
 
         try {
-            Method method = essentialsVanishedMethod;
-            Object instance = essentialsInstance;
-            if (method != null && instance != null) {
-                Object result = method.invoke(instance);
-                if (result instanceof Collection && ((Collection<?>) result).contains(player.getName())) {
-                    return Status.OFFLINE;
-                }
-            }
+            Collection<?> essentials = essentialsVanishedCache;
+            if (essentials != null && essentials.contains(player.getName())) return Status.OFFLINE;
         } catch (Throwable ignored) {
         }
 
         try {
-            Object instance = cmiInstance;
-            Method vanishManagerMethod = cmiGetVanishManager;
-            Method allVanishedMethod = cmiGetAllVanished;
-            if (instance != null && vanishManagerMethod != null && allVanishedMethod != null) {
-                Object vanishManager = vanishManagerMethod.invoke(instance);
-                Object vanished = allVanishedMethod.invoke(vanishManager);
-                if (vanished instanceof Collection && ((Collection<?>) vanished).contains(player.getUniqueId())) {
-                    return Status.OFFLINE;
-                }
-            }
+            Collection<?> cmi = cmiVanishedCache;
+            if (cmi != null && cmi.contains(player.getUniqueId())) return Status.OFFLINE;
         } catch (Throwable ignored) {
         }
 

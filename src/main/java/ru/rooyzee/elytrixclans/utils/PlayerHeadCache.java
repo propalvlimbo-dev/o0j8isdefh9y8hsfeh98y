@@ -1,5 +1,6 @@
 package ru.rooyzee.elytrixclans.utils;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -31,6 +32,17 @@ import ru.rooyzee.elytrixclans.Main;
  * Кэш решает задачу так: main-поток никогда не обращается в сеть. Если игрок уже известен —
  * голова отдаётся мгновенно из памяти, если нет — запрос уходит в асинхронную очередь
  * (не чаще одного запроса в ~1.2 секунды), а готовая голова доклеивается в открытое меню.
+ *
+ * Дополнительно кэшируются САМИ «болванки» голов с уже проставленным владельцем.
+ * Раньше при каждом открытии /clan menu на каждого из 24 участников заново создавался
+ * SkullMeta и вызывался setOwningPlayer: профиль сериализуется в NBT на каждый вызов, и на
+ * заполненном клане это давало заметный фриз сервера в полсекунды. Теперь владелец ставится
+ * один раз на игрока, а меню лишь клонирует готовый предмет.
+ *
+ * Если установка владельца всё же оказывается дорогой (экзотические форки, сторонние
+ * профиль-провайдеры), кэш сам замечает это по времени и переходит в режим отложенного
+ * заполнения: меню открывается мгновенно с пустыми головами, а владельцы доклеиваются
+ * порциями по несколько штук за тик с жёстким бюджетом времени.
  */
 public final class PlayerHeadCache {
 
@@ -38,6 +50,20 @@ public final class PlayerHeadCache {
     private static final Map<String, Long> FAILED_AT = new ConcurrentHashMap<>();
     private static final ConcurrentLinkedQueue<Entry> QUEUE = new ConcurrentLinkedQueue<>();
     private static final Map<String, Boolean> PENDING = new ConcurrentHashMap<>();
+
+    /** Готовые головы с проставленным владельцем: ключ — ник в нижнем регистре. */
+    private static final Map<String, ItemStack> SKULLS = new ConcurrentHashMap<>();
+    /** Отложенные применения владельцев: разбираются в main-потоке с бюджетом времени. */
+    private static final ConcurrentLinkedQueue<Runnable> APPLY_QUEUE = new ConcurrentLinkedQueue<>();
+
+    private static final int MAX_SKULL_CACHE = 2000;
+    private static final int MAX_APPLY_QUEUE = 1024;
+    /** Больше этого времени одна установка владельца в main-потоке стоить не должна. */
+    private static final long SYNC_APPLY_BUDGET_NANOS = 3_000_000L;
+    /** Сколько времени за тик разрешено тратить на отложенные головы. */
+    private static final long TICK_BUDGET_NANOS = 2_000_000L;
+
+    private static volatile boolean syncOwnerAllowed = true;
 
     private static final long LOOKUP_INTERVAL_MS = 1200L;
     private static final long FAILURE_COOLDOWN_MS = 10 * 60 * 1000L;
@@ -69,11 +95,17 @@ public final class PlayerHeadCache {
         Bukkit.getPluginManager().registerEvents(new Listener() {
             @EventHandler
             public void onJoin(PlayerJoinEvent event) {
-                remember(event.getPlayer());
+                Player joined = event.getPlayer();
+                remember(joined);
+                // Готовим голову заранее и вне «часа пик»: к моменту открытия /clan menu
+                // болванка уже лежит в кэше, и меню собирается на одних клонах.
+                enqueueApply(() -> preparedSkull(joined.getName(), joined));
             }
         }, owner);
 
         Bukkit.getScheduler().runTaskTimerAsynchronously(owner, PlayerHeadCache::pump, 40L, 20L);
+        // Отложенные головы доклеиваем по чуть-чуть каждый тик: открытие меню от этого не зависит.
+        Bukkit.getScheduler().runTaskTimer(owner, PlayerHeadCache::drainApplyQueue, 1L, 1L);
         // Первичное заполнение из локального кэша профиля (playercache) — без единого сетевого запроса.
         Bukkit.getScheduler().runTaskLaterAsynchronously(owner, PlayerHeadCache::seedFromLocalCache, 100L);
     }
@@ -81,7 +113,14 @@ public final class PlayerHeadCache {
     public static void shutdown() {
         QUEUE.clear();
         PENDING.clear();
+        APPLY_QUEUE.clear();
+        SKULLS.clear();
         plugin = null;
+    }
+
+    /** Забываем готовую голову: например, игрок сменил ник или скин. */
+    public static void invalidate(String name) {
+        if (name != null) SKULLS.remove(key(name));
     }
 
     /** Запоминаем OfflinePlayer онлайн-игрока, не сохраняя ссылку на сам объект Player. */
@@ -119,40 +158,132 @@ public final class PlayerHeadCache {
      */
     public static void updateSlotLater(Inventory inventory, int slot, String name) {
         if (inventory == null || name == null || name.isEmpty()) return;
-        if (KNOWN.containsKey(key(name))) return;
+        OfflinePlayer cached = known(name);
+        if (cached != null) {
+            // Профиль есть, но применять его прямо сейчас нельзя (режим отложенного
+            // заполнения) — доклеим в одном из ближайших тиков.
+            enqueueApply(() -> applyToSlot(inventory, slot, name, cached));
+            return;
+        }
         request(name, player -> {
             if (player == null) return;
-            try {
-                if (slot < 0 || slot >= inventory.getSize()) return;
-                ItemStack item = inventory.getItem(slot);
-                if (item == null || item.getType() != Material.PLAYER_HEAD) return;
-                ItemMeta itemMeta = item.getItemMeta();
-                if (!(itemMeta instanceof SkullMeta)) return;
-                applyOwner((SkullMeta) itemMeta, player);
-                item.setItemMeta(itemMeta);
-                inventory.setItem(slot, item);
-            } catch (Throwable ignored) {
-            }
+            applyToSlot(inventory, slot, name, player);
         });
     }
 
-    /** Ставит голову в инвентарь: мгновенно, если ник известен, иначе — как только станет известен. */
-    public static void fillHead(Inventory inventory, int slot, ItemStack head, String name, Player onlinePlayer) {
-        if (inventory == null || head == null) return;
-        ItemMeta itemMeta = head.getItemMeta();
-        if (itemMeta instanceof SkullMeta) {
-            SkullMeta meta = (SkullMeta) itemMeta;
-            if (onlinePlayer != null) {
-                applyOwner(meta, onlinePlayer);
-            } else {
-                applyOwner(meta, name);
+    private static void applyToSlot(Inventory inventory, int slot, String name, OfflinePlayer player) {
+        try {
+            if (inventory == null || player == null) return;
+            if (slot < 0 || slot >= inventory.getSize()) return;
+            ItemStack item = inventory.getItem(slot);
+            if (item == null || item.getType() != Material.PLAYER_HEAD) return;
+            ItemMeta itemMeta = item.getItemMeta();
+            if (!(itemMeta instanceof SkullMeta)) return;
+            applyOwner((SkullMeta) itemMeta, player);
+            item.setItemMeta(itemMeta);
+            inventory.setItem(slot, item);
+
+            // Заодно запоминаем болванку, чтобы следующее открытие меню было бесплатным.
+            String key = key(name);
+            if (!SKULLS.containsKey(key)) {
+                ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
+                ItemMeta skullMeta = skull.getItemMeta();
+                if (skullMeta instanceof SkullMeta) {
+                    applyOwner((SkullMeta) skullMeta, player);
+                    skull.setItemMeta(skullMeta);
+                    if (SKULLS.size() >= MAX_SKULL_CACHE) SKULLS.clear();
+                    SKULLS.put(key, skull);
+                }
             }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /**
+     * Готовая «болванка» головы с владельцем, либо null, если владельца сейчас
+     * не получить дёшево. Сам предмет НЕ клонируется — вызывающий обязан клонировать.
+     */
+    private static ItemStack preparedSkull(String name, Player onlinePlayer) {
+        String key = key(name);
+        ItemStack cached = SKULLS.get(key);
+        if (cached != null) return cached;
+
+        OfflinePlayer owner = onlinePlayer != null ? onlinePlayer : known(name);
+        if (owner == null) return null;
+        // В «медленном» режиме синхронно готовим головы только для онлайн-игроков:
+        // у них профиль уже загружен сервером и стоит копейки.
+        if (!syncOwnerAllowed && onlinePlayer == null) return null;
+
+        ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
+        ItemMeta itemMeta = skull.getItemMeta();
+        if (!(itemMeta instanceof SkullMeta)) return null;
+
+        long start = System.nanoTime();
+        applyOwner((SkullMeta) itemMeta, owner);
+        skull.setItemMeta(itemMeta);
+        long elapsed = System.nanoTime() - start;
+
+        if (elapsed > SYNC_APPLY_BUDGET_NANOS && syncOwnerAllowed) {
+            syncOwnerAllowed = false;
+            JavaPlugin owner0 = plugin;
+            if (owner0 != null) {
+                owner0.getLogger().warning("Установка владельца головы заняла "
+                        + (elapsed / 1_000_000L) + " мс. Меню кланов переведены на отложенное "
+                        + "заполнение голов, чтобы не задерживать главный поток.");
+            }
+        }
+
+        if (SKULLS.size() >= MAX_SKULL_CACHE) SKULLS.clear();
+        SKULLS.put(key, skull);
+        return skull;
+    }
+
+    /**
+     * Голова участника для меню: имя и описание ставятся на клон готовой болванки,
+     * поэтому открытие меню не трогает профили игроков.
+     */
+    public static ItemStack createHead(String name, Player onlinePlayer, String displayName, List<String> lore) {
+        ItemStack prepared = preparedSkull(name, onlinePlayer);
+        ItemStack head = prepared != null ? prepared.clone() : new ItemStack(Material.PLAYER_HEAD);
+        ItemMeta meta = head.getItemMeta();
+        if (meta != null) {
+            if (displayName != null) meta.setDisplayName(displayName);
+            if (lore != null) meta.setLore(lore);
             head.setItemMeta(meta);
         }
-        inventory.setItem(slot, head);
-        if (onlinePlayer == null) {
+        return head;
+    }
+
+    /** Ставит голову в инвентарь: мгновенно, а владельца — сразу или отложенно. */
+    public static void fillHead(Inventory inventory, int slot, String name, Player onlinePlayer,
+                                String displayName, List<String> lore) {
+        if (inventory == null) return;
+        // preparedSkull кэширует результат, поэтому второй вызов внутри createHead бесплатный.
+        boolean ready = preparedSkull(name, onlinePlayer) != null;
+        inventory.setItem(slot, createHead(name, onlinePlayer, displayName, lore));
+        if (!ready) {
             updateSlotLater(inventory, slot, name);
         }
+    }
+
+    /** Разбор очереди отложенных голов: не дороже пары миллисекунд за тик. */
+    private static void drainApplyQueue() {
+        if (APPLY_QUEUE.isEmpty()) return;
+        long deadline = System.nanoTime() + TICK_BUDGET_NANOS;
+        Runnable task;
+        while ((task = APPLY_QUEUE.poll()) != null) {
+            try {
+                task.run();
+            } catch (Throwable ignored) {
+            }
+            if (System.nanoTime() >= deadline) return;
+        }
+    }
+
+    private static void enqueueApply(Runnable task) {
+        if (task == null) return;
+        if (APPLY_QUEUE.size() >= MAX_APPLY_QUEUE) return;
+        APPLY_QUEUE.offer(task);
     }
 
     private static void request(String name, Consumer<OfflinePlayer> callback) {
@@ -224,15 +355,8 @@ public final class PlayerHeadCache {
         JavaPlugin owner = plugin;
         if (owner == null || !owner.isEnabled()) return;
         final OfflinePlayer resolved = player;
-        try {
-            Bukkit.getScheduler().runTask(owner, () -> {
-                try {
-                    entry.callback.accept(resolved);
-                } catch (Throwable ignored) {
-                }
-            });
-        } catch (Throwable ignored) {
-        }
+        // Через очередь с бюджетом: пачка готовых голов не должна складываться в один лаг-спайк.
+        enqueueApply(() -> entry.callback.accept(resolved));
     }
 
     private static void seedFromLocalCache() {

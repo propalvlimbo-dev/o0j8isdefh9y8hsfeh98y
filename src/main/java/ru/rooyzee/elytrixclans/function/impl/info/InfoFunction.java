@@ -10,7 +10,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.SkullMeta;
 import ru.rooyzee.elytrixclans.Main;
 import ru.rooyzee.elytrixclans.clans.Clan;
 import ru.rooyzee.elytrixclans.clans.ClanMember;
@@ -51,27 +50,22 @@ public class InfoFunction implements InventoryHolder {
             Status status = ClanMember.getStatus(member);
             if (status != Status.OFFLINE) onlineMembers++;
 
-            ItemStack head = new ItemStack(Material.PLAYER_HEAD);
-            SkullMeta meta = (SkullMeta) head.getItemMeta();
-            if (meta != null) {
-                meta.setDisplayName(HexUtil.translateHexColorCodes("&#F8BEFB" + member.getName()));
+            List<String> lore = new ArrayList<>();
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fРоль: &#F8BEFB" + roleName(member)));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСтатус: " + status.getName()));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУбийств: &#F8BEFB" + member.getKills()));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСмертей: &#F8BEFB" + member.getDeaths()));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУ/С: &#F8BEFB" + member.getKDA()));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fОпыт: &#F8BEFB" + round(member.getLevel())));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
+            lore.add(HexUtil.translateHexColorCodes("&7● &fНажмите для подробной информации"));
 
-                List<String> lore = new ArrayList<>();
-                lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fРоль: &#F8BEFB" + roleName(member)));
-                lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСтатус: " + status.getName()));
-                lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
-                lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУбийств: &#F8BEFB" + member.getKills()));
-                lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСмертей: &#F8BEFB" + member.getDeaths()));
-                lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУ/С: &#F8BEFB" + member.getKDA()));
-                lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
-                lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fОпыт: &#F8BEFB" + round(member.getLevel())));
-                lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
-                lore.add(HexUtil.translateHexColorCodes("&7● &fНажмите для подробной информации"));
-                meta.setLore(lore);
-                head.setItemMeta(meta);
-            }
-            // Головы оффлайн-игроков берём только из кэша: ни одного сетевого запроса из main-потока.
-            PlayerHeadCache.fillHead(inventory, MEMBER_SLOTS[i], head, member.getName(), member.getPlayer());
+            // Голова берётся из кэша готовых болванок: ни сетевых запросов, ни пересоздания
+            // профиля в главном потоке. Неизвестные владельцы доклеиваются позже, по тикам.
+            PlayerHeadCache.fillHead(inventory, MEMBER_SLOTS[i], member.getName(), member.getPlayer(),
+                    HexUtil.translateHexColorCodes("&#F8BEFB" + member.getName()), lore);
             i++;
         }
 

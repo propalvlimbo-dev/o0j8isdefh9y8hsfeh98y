@@ -12,7 +12,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.SkullMeta;
 import ru.rooyzee.elytrixclans.Main;
 import ru.rooyzee.elytrixclans.clans.Clan;
 import ru.rooyzee.elytrixclans.clans.ClanMember;
@@ -39,24 +38,18 @@ public class MemberInventory implements InventoryHolder {
         // и кнопку кика (слот 53) — меню выглядело пустым, а клики по цветам не работали.
         MenuUtil.applyLayout(inventory);
 
-        ItemStack head = new ItemStack(Material.PLAYER_HEAD);
-        SkullMeta skullMeta = (SkullMeta) head.getItemMeta();
-        if (skullMeta != null) {
-            skullMeta.setDisplayName(HexUtil.translateHexColorCodes("&#F8BEFB" + clanMember.getName()));
-            Status status = ClanMember.getStatus(clanMember);
-            List<String> lore = new ArrayList<>();
-            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fРоль: &#F8BEFB" + roleName(clanMember)));
-            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСтатус: " + status.getName()));
-            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
-            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУбийств: &#F8BEFB" + clanMember.getKills()));
-            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСмертей: &#F8BEFB" + clanMember.getDeaths()));
-            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУ/С: &#F8BEFB" + clanMember.getKDA()));
-            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
-            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fОпыт: &#F8BEFB" + round(clanMember.getLevel())));
-            skullMeta.setLore(lore);
-            head.setItemMeta(skullMeta);
-        }
-        PlayerHeadCache.fillHead(inventory, 4, head, clanMember.getName(), clanMember.getPlayer());
+        Status status = ClanMember.getStatus(clanMember);
+        List<String> headLore = new ArrayList<>();
+        headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fРоль: &#F8BEFB" + roleName(clanMember)));
+        headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСтатус: " + status.getName()));
+        headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
+        headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУбийств: &#F8BEFB" + clanMember.getKills()));
+        headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСмертей: &#F8BEFB" + clanMember.getDeaths()));
+        headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУ/С: &#F8BEFB" + clanMember.getKDA()));
+        headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
+        headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fОпыт: &#F8BEFB" + round(clanMember.getLevel())));
+        PlayerHeadCache.fillHead(inventory, 4, clanMember.getName(), clanMember.getPlayer(),
+                HexUtil.translateHexColorCodes("&#F8BEFB" + clanMember.getName()), headLore);
 
         for (int i = 0; i < dyesSlots.length; i++) {
             boolean hasPerm = clanMember.getRole().getPermissions().contains(
