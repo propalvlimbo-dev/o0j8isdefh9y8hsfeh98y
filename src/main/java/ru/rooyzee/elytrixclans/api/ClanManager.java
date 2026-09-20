@@ -9,8 +9,7 @@ import org.bukkit.entity.Player;
 import ru.rooyzee.elytrixclans.Main;
 import ru.rooyzee.elytrixclans.clans.Clan;
 import ru.rooyzee.elytrixclans.clans.ClanMember;
-import ru.rooyzee.elytrixclans.permission.Permissions;
-import ru.rooyzee.elytrixclans.role.Roles;
+import ru.rooyzee.elytrixclans.role.ClanRoles;
 import ru.rooyzee.elytrixclans.status.Status;
 import ru.rooyzee.elytrixclans.level.Level;
 import ru.rooyzee.elytrixclans.utils.CloseInventoryUtil;
@@ -125,7 +124,7 @@ public class ClanManager {
             member.setKDA(0);
             member.setKills(0);
             member.setLevel(0);
-            member.setRole(new Roles("Участник"));
+            member.setRole(ClanRoles.rookie());
         });
         clan.setMemberList(new CopyOnWriteArrayList<>());
         clans.remove(clan);
@@ -133,7 +132,7 @@ public class ClanManager {
 
     public void createClan(String name, Player owner) {
         ClanMember ownerMember = new ClanMember(owner.getName(), Status.ONLINE, 0, 1.0, 0, 0,
-                new Roles("Лидер", Permissions.values()));
+                ClanRoles.leader());
         CopyOnWriteArrayList<ClanMember> members = new CopyOnWriteArrayList<>();
         members.add(ownerMember);
         Clan clan = new Clan(0, null, owner.getName(), members, false, false, null, name);
@@ -143,7 +142,7 @@ public class ClanManager {
 
     public void addPlayer(Clan clan, Player player) {
         ClanMember member = new ClanMember(player.getName(), Status.ONLINE, 0, 1.0, 0, 0,
-                new Roles("Участник"));
+                ClanRoles.rookie());
         clan.getMemberList().add(member);
         byMemberName.put(key(player.getName()), clan);
         if (Main.getInstance().getGlowManager() != null && clan.isGlow()) {
@@ -189,6 +188,37 @@ public class ClanManager {
         byMemberName.clear();
         for (Clan clan : clans) {
             indexClan(clan);
+            migrateRoles(clan);
+        }
+    }
+
+    /**
+     * Приведение состава к актуальной лестнице ролей.
+     *
+     * Кланы, сохранённые до появления ролей Новичок/Стажёр/Опытный, хранят «Участник»
+     * с произвольным набором прав. Здесь такие роли пересчитываются: владелец клана
+     * всегда Лидер, Модератор сохраняется, остальным роль выдаётся по личному вкладу.
+     */
+    private void migrateRoles(Clan clan) {
+        if (clan == null) return;
+        for (ClanMember member : clan.getMemberList()) {
+            if (member == null || member.getName() == null) continue;
+
+            if (member.getName().equalsIgnoreCase(clan.getOwner())) {
+                if (!ClanRoles.LEADER.equals(member.getRole().getName())) {
+                    member.setRole(ClanRoles.leader());
+                }
+                continue;
+            }
+
+            String current = ClanRoles.normalize(member.getRole().getName());
+            if (ClanRoles.MODERATOR.equals(current)) {
+                member.setRole(ClanRoles.create(ClanRoles.MODERATOR));
+                continue;
+            }
+            // Лидером может быть только владелец: чужой «Лидер» из старого файла сбрасывается.
+            String earned = ClanRoles.earnedRole(member.getLevel());
+            member.setRole(ClanRoles.create(earned));
         }
     }
 
@@ -232,6 +262,8 @@ public class ClanManager {
             ClanMember member = getMember(clan, contributorName);
             if (member != null) {
                 member.setLevel(Math.max(0, member.getLevel() + amount));
+                // Личный вклад вырос — возможно, участник дорос до следующей роли.
+                checkRolePromotion(clan, member);
             }
         }
         Level after = LevelUtil.getClanLevel(clan.getExp());
@@ -247,6 +279,38 @@ public class ClanManager {
 
     public boolean addClanExp(Clan clan, double amount) {
         return addClanExp(clan, amount, null);
+    }
+
+    /**
+     * Автоматическое повышение роли за личный вклад: Новичок -> Стажёр -> Опытный.
+     *
+     * Роли, выданные владельцем вручную (Модератор, Лидер), не трогаются: они выше
+     * любой «заработанной», и понижать их начислением опыта нельзя.
+     */
+    public void checkRolePromotion(Clan clan, ClanMember member) {
+        if (clan == null || member == null) return;
+        String current = ClanRoles.normalize(member.getRole().getName());
+        if (ClanRoles.isManual(current)) return;
+
+        String earned = ClanRoles.earnedRole(member.getLevel());
+        if (ClanRoles.weight(earned) <= ClanRoles.weight(current)) return;
+
+        member.setRole(ClanRoles.create(earned));
+        Player online = member.getPlayer();
+        if (online != null && online.isOnline()) {
+            ConfigUtil.sendMessage(online, "messages.roleUp", ConfigUtil.setHolder(
+                    new String[]{"%role%", "%player%"},
+                    new String[]{earned, member.getName()}));
+        }
+        for (ClanMember m : clan.getMemberList()) {
+            if (m == null || m == member) continue;
+            Player other = m.getPlayer();
+            if (other != null && other.isOnline()) {
+                ConfigUtil.sendMessage(other, "messages.roleUpBroadcast", ConfigUtil.setHolder(
+                        new String[]{"%role%", "%player%"},
+                        new String[]{earned, member.getName()}));
+            }
+        }
     }
 
     /** Начисление опыта по нику игрока: клан находится сам. */

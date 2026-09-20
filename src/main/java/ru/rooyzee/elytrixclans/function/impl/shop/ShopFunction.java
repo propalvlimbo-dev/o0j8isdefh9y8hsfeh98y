@@ -10,6 +10,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import ru.rooyzee.elytrixclans.Main;
@@ -238,13 +240,27 @@ public class ShopFunction implements InventoryHolder {
         return barrier(HexUtil.translateHexColorCodes("&7« &cЗакрыто &7»"), lore);
     }
 
-    /** Позиция на кулдауне — тоже барьер, с остатком времени. */
+    /**
+     * Позиция на перезарядке — зачарованные часы: стрелка крутится сама, поэтому слот
+     * читается как «идёт отсчёт». Барьер тут смотрелся как «запрещено навсегда».
+     */
     private ItemStack cooldownIcon(String displayName, List<String> baseLore, long cooldownMillis) {
         List<String> lore = new ArrayList<>(baseLore);
         lore.add(HexUtil.translateHexColorCodes("&c● Перезарядка покупки"));
         lore.add(HexUtil.translateHexColorCodes("&c● Доступно через &#F8BEFB"
                 + PurchaseCooldownStorage.format(cooldownMillis)));
-        return barrier(displayName, lore);
+
+        ItemStack stack = new ItemStack(Material.CLOCK);
+        ItemMeta meta = stack.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(displayName);
+            meta.setLore(lore);
+            // Блеск без надписи о зачаровании.
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_ATTRIBUTES);
+            stack.setItemMeta(meta);
+        }
+        stack.addUnsafeEnchantment(Enchantment.DURABILITY, 1);
+        return stack;
     }
 
     private ItemStack barrier(String displayName, List<String> lore) {

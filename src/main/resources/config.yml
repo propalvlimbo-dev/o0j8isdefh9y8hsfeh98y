@@ -168,6 +168,19 @@ messages:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aРоль игрока изменена"
   leaderChanged:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИгрок &#F8BEFB%player% &fпередал лидерство игроку &#F8BEFB%target%"
+  roleUp:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aНовая роль в клане: &#F8BEFB%role%"
+  roleUpBroadcast:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИгрок &#F8BEFB%player% &fдорос до роли &#F8BEFB%role%"
+  roleAlready:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cУ игрока &#F8BEFB%player% &cуже роль &#F8BEFB%role%"
+  roleChanged:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИгрок &#F8BEFB%player% &fназначил игроку &#F8BEFB%target% &fроль &#F8BEFB%role%"
+  onlyOwnerRole:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cМенять роли может только лидер клана"
+  shopRoleLocked:
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cМагазин откроется с роли &#F8BEFB%role%"
+    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &7Нужно личного опыта: &#F8BEFB%exp%"
   buyItem:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aКуплено: &f%item% &7за &#F8BEFB%price% &7монет"
   shopLevelLocked:

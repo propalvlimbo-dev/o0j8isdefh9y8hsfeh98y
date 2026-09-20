@@ -58,9 +58,15 @@ public class Roles implements ConfigurationSerializable {
     }
 
     public static Roles deserialize(Map<String, Object> args) {
-        if (args == null) return new Roles("Участник");
+        if (args == null) return ClanRoles.rookie();
         Object nameObj = args.get("name");
-        String name = nameObj instanceof String ? (String) nameObj : "Участник";
+        String name = nameObj instanceof String ? (String) nameObj : ClanRoles.ROOKIE;
+        // Права берём из описания роли, а не из файла: набор прав у роли задан в коде,
+        // поэтому старые сохранения («Участник» с произвольным списком) чинятся сами.
+        String normalized = ClanRoles.normalize(name);
+        if (!normalized.equals(name.trim())) {
+            return ClanRoles.create(normalized);
+        }
         List<String> permissionsNames = null;
         Object permissionsObj = args.get("permissions");
         if (permissionsObj instanceof List) {

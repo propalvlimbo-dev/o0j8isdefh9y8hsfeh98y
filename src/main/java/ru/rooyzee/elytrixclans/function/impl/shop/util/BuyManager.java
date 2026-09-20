@@ -17,6 +17,7 @@ import ru.rooyzee.elytrixclans.function.impl.shop.object.ShopItem;
 import ru.rooyzee.elytrixclans.hook.impl.VaultHook;
 import ru.rooyzee.elytrixclans.level.Level;
 import ru.rooyzee.elytrixclans.permission.Permissions;
+import ru.rooyzee.elytrixclans.role.ClanRoles;
 import ru.rooyzee.elytrixclans.utils.ConfigUtil;
 import ru.rooyzee.elytrixclans.utils.LevelUtil;
 import ru.rooyzee.elytrixclans.utils.MenuUtil;
@@ -194,9 +195,19 @@ public class BuyManager {
 
     private boolean hasShopPermission(Player player, Clan clan) {
         ClanMember member = Main.getInstance().getClanManager().getMember(clan, player.getName());
-        if (member == null || member.getRole() == null
-                || !member.getRole().getPermissions().contains(Permissions.SHOP)) {
+        if (member == null || member.getRole() == null) {
             ConfigUtil.sendMessage(player, "messages.noPermission", null);
+            return false;
+        }
+        if (!member.getRole().getPermissions().contains(Permissions.SHOP)) {
+            // Новичку магазин закрыт: объясняем, что нужно дорасти до следующей роли,
+            // а не просто «нет прав».
+            String next = ClanRoles.nextAutoRole(member.getLevel());
+            double left = ClanRoles.expToNextRole(member.getLevel());
+            ConfigUtil.sendMessage(player, "messages.shopRoleLocked", ConfigUtil.setHolder(
+                    new String[]{"%role%", "%exp%"},
+                    new String[]{next != null ? next : ClanRoles.TRAINEE,
+                            MenuUtil.money(Math.max(0, left))}));
             return false;
         }
         return true;

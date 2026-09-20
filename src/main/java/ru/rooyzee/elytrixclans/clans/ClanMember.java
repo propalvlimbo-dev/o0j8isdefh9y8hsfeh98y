@@ -9,6 +9,7 @@ import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.configuration.serialization.SerializableAs;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import ru.rooyzee.elytrixclans.role.ClanRoles;
 import ru.rooyzee.elytrixclans.role.Roles;
 import ru.rooyzee.elytrixclans.status.Status;
 
@@ -31,7 +32,7 @@ public class ClanMember implements ConfigurationSerializable {
         this.kda = safe(kda);
         this.deaths = Math.max(0, deaths);
         this.kills = Math.max(0, kills);
-        this.role = role != null ? role : new Roles("Участник");
+        this.role = role != null ? role : ClanRoles.rookie();
     }
 
     private static double safe(double value) {
@@ -83,12 +84,12 @@ public class ClanMember implements ConfigurationSerializable {
     }
 
     public Roles getRole() {
-        if (role == null) role = new Roles("Участник");
+        if (role == null) role = ClanRoles.rookie();
         return role;
     }
 
     public void setRole(Roles role) {
-        this.role = role != null ? role : new Roles("Участник");
+        this.role = role != null ? role : ClanRoles.rookie();
     }
 
     // ---Vanish-хуки (Essentials/CMI)-------------------------------------------------------
@@ -255,7 +256,7 @@ public class ClanMember implements ConfigurationSerializable {
         double kda = number(map.get("KDA"), 0.0);
         double level = number(map.get("level"), 0.0);
         return new ClanMember(name, status, level, kda, deaths, kills,
-                role != null ? role : new Roles("Участник"));
+                role != null ? role : ClanRoles.rookie());
     }
 
     /** Минимально восстановимый участник, если основные поля повреждены. */
@@ -263,7 +264,7 @@ public class ClanMember implements ConfigurationSerializable {
         if (map == null) return null;
         Object nameObj = map.get("name");
         if (!(nameObj instanceof String) || ((String) nameObj).isEmpty()) return null;
-        return new ClanMember((String) nameObj, Status.OFFLINE, 0, 0, 0, 0, new Roles("Участник"));
+        return new ClanMember((String) nameObj, Status.OFFLINE, 0, 0, 0, 0, ClanRoles.rookie());
     }
 
     private static int number(Object value, int def) {

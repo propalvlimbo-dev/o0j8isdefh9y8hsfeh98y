@@ -104,7 +104,10 @@ public class KitPreviewInventory implements InventoryHolder {
                 : Main.getInstance().getBuyManager().remainingCooldown(player, BuyManager.kitKey(kit));
         boolean available = !locked && cooldown <= 0;
 
-        ItemStack buyBtn = new ItemStack(available ? Material.EMERALD : Material.BARRIER);
+        // Идёт перезарядка — часы (отсчёт), закрыто уровнем — барьер (пока недоступно).
+        Material buyMaterial = available ? Material.EMERALD
+                : (cooldown > 0 ? Material.CLOCK : Material.BARRIER);
+        ItemStack buyBtn = new ItemStack(buyMaterial);
         ItemMeta buyMeta = buyBtn.getItemMeta();
         if (buyMeta != null) {
             buyMeta.setDisplayName(HexUtil.translateHexColorCodes(available
@@ -128,7 +131,13 @@ public class KitPreviewInventory implements InventoryHolder {
                 lore.add(HexUtil.translateHexColorCodes("&7● &fНажмите для покупки"));
             }
             buyMeta.setLore(lore);
+            if (buyMaterial == Material.CLOCK) {
+                buyMeta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
+            }
             buyBtn.setItemMeta(buyMeta);
+        }
+        if (buyMaterial == Material.CLOCK) {
+            buyBtn.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.DURABILITY, 1);
         }
         if (available) {
             // NBT вешаем только на доступную кнопку: недоступную клик просто игнорирует.

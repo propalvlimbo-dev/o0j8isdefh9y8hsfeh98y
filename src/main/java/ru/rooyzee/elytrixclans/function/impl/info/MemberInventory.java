@@ -3,7 +3,6 @@ package ru.rooyzee.elytrixclans.function.impl.info;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -15,23 +14,35 @@ import org.bukkit.inventory.meta.ItemMeta;
 import ru.rooyzee.elytrixclans.Main;
 import ru.rooyzee.elytrixclans.clans.Clan;
 import ru.rooyzee.elytrixclans.clans.ClanMember;
-import ru.rooyzee.elytrixclans.permission.Permissions;
-import ru.rooyzee.elytrixclans.role.Roles;
+import ru.rooyzee.elytrixclans.role.ClanRoles;
 import ru.rooyzee.elytrixclans.status.Status;
 import ru.rooyzee.elytrixclans.utils.ConfigUtil;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
 import ru.rooyzee.elytrixclans.utils.MenuUtil;
 import ru.rooyzee.elytrixclans.utils.NBTUtil;
 import ru.rooyzee.elytrixclans.utils.PlayerHeadCache;
-import ru.rooyzee.elytrixclans.utils.ValidatorUtil;
 
+/**
+ * Карточка участника клана.
+ *
+ * Для обычного игрока это просто справка. Лидеру дополнительно доступны два действия:
+ * выдать участнику роль и выгнать его из клана. Отдельных тумблеров прав больше нет —
+ * права определяются ролью (см. ClanRoles), поэтому настраивать их по одному не нужно.
+ */
 public class MemberInventory implements InventoryHolder {
 
     private static final String NBT_MEMBER_ACTION = "clanMemberAction";
+    /** Слоты ролей, которые лидер может выдать вручную. */
+    private static final int SLOT_ROOKIE = 20;
+    private static final int SLOT_TRAINEE = 21;
+    private static final int SLOT_VETERAN = 22;
+    private static final int SLOT_MODERATOR = 23;
+    private static final int SLOT_LEADER = 24;
+    private static final int SLOT_KICK = 53;
 
     private final Inventory inventory;
-    private final int[] dyesSlots = {21, 22, 23, 30, 31, 32};
-    private final String[] permNames = {"shop", "kick", "sethome", "invite", "pvp", "glow"};
+    /** Имя участника: обработчик кликов достаёт по нему актуальные данные. */
+    private final String memberName;
 
     /** Просмотр без управления (совместимость со старыми вызовами). */
     public MemberInventory(ClanMember clanMember) {
@@ -39,55 +50,47 @@ public class MemberInventory implements InventoryHolder {
     }
 
     public MemberInventory(ClanMember clanMember, Player viewer) {
+        this.memberName = clanMember.getName();
+
         inventory = Bukkit.createInventory(this, 54,
                 HexUtil.translateHexColorCodes("&#F8BEFB&lУчастник клана"));
 
-        // Рамку ставим первой: раньше applyLayout вызывался в конце и затирал голову (слот 4)
-        // и кнопку кика (слот 53) — меню выглядело пустым, а клики по цветам не работали.
+        // Рамку ставим первой: иначе applyLayout затирает голову и кнопки.
         MenuUtil.applyLayout(inventory);
 
         Status status = ClanMember.getStatus(clanMember);
+        String role = ClanRoles.normalize(clanMember.getRole().getName());
+
         List<String> headLore = new ArrayList<>();
-        headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fРоль: &#F8BEFB" + roleName(clanMember)));
+        headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fРоль: &#F8BEFB" + role));
         headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСтатус: " + status.getName()));
         headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
         headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУбийств: &#F8BEFB" + clanMember.getKills()));
         headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСмертей: &#F8BEFB" + clanMember.getDeaths()));
         headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fУ/С: &#F8BEFB" + clanMember.getKDA()));
         headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
-        headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fОпыт: &#F8BEFB" + round(clanMember.getLevel())));
+        headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fВклад в клан: &#F8BEFB"
+                + round(clanMember.getLevel()) + " опыта"));
+        // Пока роль растёт сама — показываем, сколько осталось до следующей ступени.
+        if (!ClanRoles.isManual(role)) {
+            String next = ClanRoles.nextAutoRole(clanMember.getLevel());
+            if (next != null) {
+                headLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fДо роли &#F8BEFB" + next
+                        + "&f: &#F8BEFB" + round(ClanRoles.expToNextRole(clanMember.getLevel())) + " опыта"));
+            }
+        }
         PlayerHeadCache.fillHead(inventory, 4, clanMember.getName(), clanMember.getPlayer(),
                 HexUtil.translateHexColorCodes("&#F8BEFB" + clanMember.getName()), headLore);
 
-        for (int i = 0; i < dyesSlots.length; i++) {
-            boolean hasPerm = clanMember.getRole().getPermissions().contains(
-                    Permissions.valueOf(permNames[i].toUpperCase(Locale.ROOT)));
-            ItemStack dye = new ItemStack(hasPerm ? Material.LIME_DYE : Material.GRAY_DYE);
-            ItemMeta dyeMeta = dye.getItemMeta();
-            if (dyeMeta != null) {
-                dyeMeta.setDisplayName(HexUtil.translateHexColorCodes(
-                        "&fДоступ к &#F8BEFB/clan " + permNames[i]));
-                List<String> dyeLore = new ArrayList<>();
-                dyeLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
-                dyeLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСтатус: " + (hasPerm ? "&aВключено" : "&cВыключено")));
-                dyeLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
-                dyeLore.add(HexUtil.translateHexColorCodes("&7● &fНажмите для переключения"));
-                dyeMeta.setLore(dyeLore);
-                dye.setItemMeta(dyeMeta);
-            }
-            NBTUtil.addItemNBT(dye, "dye", permNames[i]);
-            inventory.setItem(dyesSlots[i], dye);
-        }
-
         inventory.setItem(45, MenuUtil.createBackButton());
 
-        // Панель управления показываем только лидеру и только для чужой карточки:
-        // сам себя и владельца клана кикать/понижать нельзя.
+        // Панель управления — только лидеру и только в чужой карточке.
         Clan clan = Main.getInstance().getClanManager().getPlayerClan(clanMember.getName());
         ClanMember viewerMember = viewer != null && clan != null
                 ? Main.getInstance().getClanManager().getMember(clan, viewer.getName())
                 : null;
-        boolean leader = viewerMember != null && "Лидер".equals(viewerMember.getRole().getName());
+        boolean leader = viewerMember != null
+                && ClanRoles.LEADER.equals(ClanRoles.normalize(viewerMember.getRole().getName()));
         boolean targetIsOwner = clan != null && clanMember.getName() != null
                 && clanMember.getName().equalsIgnoreCase(clan.getOwner());
         boolean self = viewer != null && clanMember.getName() != null
@@ -95,22 +98,68 @@ public class MemberInventory implements InventoryHolder {
 
         if (!leader || targetIsOwner || self) return;
 
-        boolean moderator = "Модератор".equals(clanMember.getRole().getName());
-        if (moderator) {
-            inventory.setItem(47, button(Material.IRON_INGOT, "&7« &eПонизить до участника &7»",
-                    "Сейчас: &#F8BEFBМодератор", "Нажмите, чтобы понизить", "demote"));
-        } else {
-            inventory.setItem(47, button(Material.GOLD_INGOT, "&7« &aПовысить до модератора &7»",
-                    "Сейчас: &#F8BEFB" + roleName(clanMember), "Нажмите, чтобы повысить", "promote"));
-        }
+        inventory.setItem(3, sectionLabel());
 
-        inventory.setItem(51, button(Material.NETHER_STAR, "&7« &6Передать лидерство &7»",
-                "&cВы станете обычным участником", "Нажмите, чтобы передать", "setleader"));
+        roleButton(SLOT_ROOKIE, Material.LEATHER_BOOTS, ClanRoles.ROOKIE, role,
+                "Только бой за клан, магазин закрыт");
+        roleButton(SLOT_TRAINEE, Material.IRON_INGOT, ClanRoles.TRAINEE, role,
+                "Доступ к магазину клана");
+        roleButton(SLOT_VETERAN, Material.GOLD_INGOT, ClanRoles.VETERAN, role,
+                "Знак заслуг, доступ к магазину");
+        roleButton(SLOT_MODERATOR, Material.DIAMOND, ClanRoles.MODERATOR, role,
+                "Кик из клана и переключение PvP");
+        roleButton(SLOT_LEADER, Material.NETHER_STAR, ClanRoles.LEADER, role,
+                "&cВы сами станете Новичком");
 
         ItemStack kickBtn = button(Material.RED_DYE, "&7« &cКикнуть игрока &7»",
                 "Удалить из клана: &cБезвозвратно", "Нажмите для кика", null);
         NBTUtil.addItemNBT(kickBtn, "barrierItem", "");
-        inventory.setItem(53, kickBtn);
+        inventory.setItem(SLOT_KICK, kickBtn);
+    }
+
+    private ItemStack sectionLabel() {
+        ItemStack item = new ItemStack(Material.BOOK);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(HexUtil.translateHexColorCodes("&7« &#F8BEFBВыдать роль &7»"));
+            meta.setLore(Arrays.asList(
+                    HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "),
+                    HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fНовичок, Стажёр и Опытный"),
+                    HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fучастник получает и сам — за опыт."),
+                    HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fМодератора и Лидера выдаёте только вы."),
+                    HexUtil.translateHexColorCodes("&#F8BEFB&l┃ ")));
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    /** Кнопка выдачи роли; текущая роль подсвечивается зачарованием и пометкой. */
+    private void roleButton(int slot, Material material, String role, String currentRole,
+                            String description) {
+        boolean active = role.equals(currentRole);
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(HexUtil.translateHexColorCodes(
+                    (active ? "&7« &a" : "&7« &#F8BEFB") + role + " &7»"));
+            List<String> lore = new ArrayList<>();
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &f" + description));
+            lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
+            lore.add(HexUtil.translateHexColorCodes(active
+                    ? "&a● Текущая роль участника"
+                    : "&7● &fНажмите, чтобы выдать"));
+            meta.setLore(lore);
+            meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES,
+                    org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS);
+            item.setItemMeta(meta);
+        }
+        if (active) {
+            // Блеск у текущей роли: видно с одного взгляда, без чтения лора.
+            item.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.DURABILITY, 1);
+        }
+        NBTUtil.addItemNBT(item, NBT_MEMBER_ACTION, "role:" + role);
+        inventory.setItem(slot, item);
     }
 
     private static ItemStack button(Material material, String title, String description,
@@ -130,50 +179,38 @@ public class MemberInventory implements InventoryHolder {
         return item;
     }
 
-    @Override
-    public Inventory getInventory() {
-        return inventory;
-    }
-
     public void onInventoryClick(InventoryClickEvent event) {
         event.setCancelled(true);
         if (event.getCurrentItem() == null || !(event.getWhoClicked() instanceof Player)) return;
-        if (event.getClickedInventory() == null) return;
-        Player clickedPlayer = (Player) event.getWhoClicked();
+        Player clicker = (Player) event.getWhoClicked();
         ItemStack clickedItem = event.getCurrentItem();
 
-        ItemStack headItem = event.getClickedInventory().getItem(4);
-        if (headItem == null || headItem.getType() != Material.PLAYER_HEAD || headItem.getItemMeta() == null) return;
-        if (headItem.getItemMeta().getDisplayName() == null) return;
-
-        String memberName = ValidatorUtil.removeAllColors(headItem.getItemMeta().getDisplayName());
         ClanMember clanMember = Main.getInstance().getClanManager().getPlayerClanMember(memberName);
         if (clanMember == null) return;
         Clan clan = Main.getInstance().getClanManager().getPlayerClan(clanMember.getName());
         if (clan == null) return;
 
         if (NBTUtil.hasItemNBT(clickedItem, "arrowItem")) {
-            clickedPlayer.openInventory(new InfoFunction(clan, clickedPlayer).getInventory());
+            clicker.openInventory(new InfoFunction(clan, clicker).getInventory());
             return;
         }
 
-        ClanMember clickerMember = Main.getInstance().getClanManager().getPlayerClanMember(clickedPlayer);
+        // Права проверяем на каждый клик: меню могло провисеть открытым после смены роли.
+        ClanMember clickerMember = Main.getInstance().getClanManager().getMember(clan, clicker.getName());
         if (clickerMember == null) return;
-        if (Main.getInstance().getClanManager().getPlayerClan(clickedPlayer) != clan) return;
-        if (!"Лидер".equals(clickerMember.getRole().getName())) return;
-
-        if (clanMember.getName().equalsIgnoreCase(clickedPlayer.getName())) {
-            ConfigUtil.sendMessage(clickedPlayer, "messages.notDoYourself", null);
+        if (!ClanRoles.LEADER.equals(ClanRoles.normalize(clickerMember.getRole().getName()))) return;
+        if (clanMember.getName().equalsIgnoreCase(clicker.getName())) {
+            ConfigUtil.sendMessage(clicker, "messages.notDoYourself", null);
             return;
         }
         if (clanMember.getName().equalsIgnoreCase(clan.getOwner())) {
-            ConfigUtil.sendMessage(clickedPlayer, "messages.notAccess", null);
+            ConfigUtil.sendMessage(clicker, "messages.notAccess", null);
             return;
         }
 
         String action = NBTUtil.getNBTvalue(clickedItem, NBT_MEMBER_ACTION);
-        if (action != null) {
-            handleRoleAction(clickedPlayer, clan, clanMember, action);
+        if (action != null && action.startsWith("role:")) {
+            applyRole(clicker, clan, clanMember, action.substring("role:".length()));
             return;
         }
 
@@ -181,106 +218,65 @@ public class MemberInventory implements InventoryHolder {
             Main.getInstance().getClanManager().kickPlayer(clan, clanMember);
             if (clanMember.getPlayer() != null && clanMember.getPlayer().isOnline()) {
                 ConfigUtil.sendMessage(clanMember.getPlayer(), "messages.youKicked",
-                        ConfigUtil.setHolder(new String[]{"%player%"}, new String[]{clickedPlayer.getName()}));
+                        ConfigUtil.setHolder(new String[]{"%player%"}, new String[]{clicker.getName()}));
             }
             for (ClanMember m : clan.getMemberList()) {
-                if (m.getPlayer() != null && m.getPlayer().isOnline()) {
-                    ConfigUtil.sendMessage(m.getPlayer(), "messages.playerKicked",
-                            ConfigUtil.setHolder(new String[]{"%player%", "%target%"},
-                                    new String[]{clickedPlayer.getName(), clanMember.getName()}));
-                }
-            }
-            clickedPlayer.closeInventory();
-        } else if (NBTUtil.hasItemNBT(clickedItem, "dye")) {
-            String permName = NBTUtil.getNBTvalue(clickedItem, "dye");
-            if (permName == null) return;
-            Permissions perm;
-            try {
-                perm = Permissions.valueOf(permName.toUpperCase(Locale.ROOT));
-            } catch (IllegalArgumentException e) {
-                return;
-            }
-            List<Permissions> perms = new ArrayList<>(clanMember.getRole().getPermissions());
-            if (perms.contains(perm)) {
-                perms.remove(perm);
-                clickedItem.setType(Material.GRAY_DYE);
-            } else {
-                perms.add(perm);
-                clickedItem.setType(Material.LIME_DYE);
-            }
-            clanMember.getRole().setPermissions(perms);
-            ItemMeta dyeMeta = clickedItem.getItemMeta();
-            if (dyeMeta != null) {
-                boolean hasPerm = perms.contains(perm);
-                List<String> dyeLore = new ArrayList<>();
-                dyeLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
-                dyeLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fСтатус: " + (hasPerm ? "&aВключено" : "&cВыключено")));
-                dyeLore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
-                dyeLore.add(HexUtil.translateHexColorCodes("&7● &fНажмите для переключения"));
-                dyeMeta.setLore(dyeLore);
-                clickedItem.setItemMeta(dyeMeta);
-            }
-            clickedPlayer.updateInventory();
-        }
-    }
-
-    /**
-     * Смена роли участника прямо из меню — это /clan promote, /clan demote и передача
-     * лидерства без необходимости печатать команды и помнить точный ник.
-     */
-    private void handleRoleAction(Player clicker, Clan clan, ClanMember target, String action) {
-        if ("promote".equals(action)) {
-            if ("Модератор".equals(target.getRole().getName())) {
-                ConfigUtil.sendMessage(clicker, "messages.alreadyHasPromote", null);
-                return;
-            }
-            target.setRole(new Roles("Модератор", Permissions.SETHOME, Permissions.INVITE,
-                    Permissions.KICK, Permissions.PVP, Permissions.GLOW));
-            ConfigUtil.sendMessage(clicker, "messages.promoted",
-                    ConfigUtil.setHolder(new String[]{"%player%"}, new String[]{target.getName()}));
-            clicker.openInventory(new MemberInventory(target, clicker).getInventory());
-            return;
-        }
-
-        if ("demote".equals(action)) {
-            if (!"Модератор".equals(target.getRole().getName())) {
-                ConfigUtil.sendMessage(clicker, "messages.notModerator", null);
-                return;
-            }
-            target.setRole(new Roles("Участник"));
-            ConfigUtil.sendMessage(clicker, "messages.demoted",
-                    ConfigUtil.setHolder(new String[]{"%player%"}, new String[]{target.getName()}));
-            clicker.openInventory(new MemberInventory(target, clicker).getInventory());
-            return;
-        }
-
-        if ("setleader".equals(action)) {
-            ClanMember clickerMember = Main.getInstance().getClanManager()
-                    .getMember(clan, clicker.getName());
-            if (clickerMember == null) return;
-            // Лидерство ровно одно: новый лидер получает все права, старый становится участником.
-            target.setRole(new Roles("Лидер", Permissions.values()));
-            clickerMember.setRole(new Roles("Участник"));
-            clan.setOwner(target.getName());
-            for (ClanMember m : clan.getMemberList()) {
-                if (m == null) continue;
-                Player online = m.getPlayer();
-                if (online != null && online.isOnline()) {
-                    ConfigUtil.sendMessage(online, "messages.leaderChanged",
-                            ConfigUtil.setHolder(new String[]{"%player%", "%target%"},
-                                    new String[]{clicker.getName(), target.getName()}));
-                }
+                if (m == null || m.getPlayer() == null || !m.getPlayer().isOnline()) continue;
+                ConfigUtil.sendMessage(m.getPlayer(), "messages.playerKicked",
+                        ConfigUtil.setHolder(new String[]{"%player%", "%target%"},
+                                new String[]{clicker.getName(), clanMember.getName()}));
             }
             clicker.openInventory(new InfoFunction(clan, clicker).getInventory());
         }
     }
 
-    private static String roleName(ClanMember member) {
-        try {
-            return member.getRole().getName();
-        } catch (Exception e) {
-            return "Участник";
+    /** Выдача роли лидером. Передача лидерства обрабатывается отдельно. */
+    private void applyRole(Player clicker, Clan clan, ClanMember target, String rawRole) {
+        String role = ClanRoles.normalize(rawRole);
+
+        if (ClanRoles.LEADER.equals(role)) {
+            ClanMember clickerMember = Main.getInstance().getClanManager()
+                    .getMember(clan, clicker.getName());
+            if (clickerMember == null) return;
+            // Лидер в клане один: бывший владелец опускается до заслуженной роли.
+            target.setRole(ClanRoles.leader());
+            clickerMember.setRole(ClanRoles.create(ClanRoles.earnedRole(clickerMember.getLevel())));
+            clan.setOwner(target.getName());
+            broadcast(clan, "messages.leaderChanged", clicker.getName(), target.getName());
+            clicker.openInventory(new InfoFunction(clan, clicker).getInventory());
+            return;
         }
+
+        if (role.equals(ClanRoles.normalize(target.getRole().getName()))) {
+            ConfigUtil.sendMessage(clicker, "messages.roleAlready",
+                    ConfigUtil.setHolder(new String[]{"%player%", "%role%"},
+                            new String[]{target.getName(), role}));
+            return;
+        }
+
+        target.setRole(ClanRoles.create(role));
+        broadcast(clan, "messages.roleChanged", clicker.getName(), target.getName(), role);
+        clicker.openInventory(new MemberInventory(target, clicker).getInventory());
+    }
+
+    private void broadcast(Clan clan, String key, String player, String target) {
+        broadcast(clan, key, player, target, null);
+    }
+
+    private void broadcast(Clan clan, String key, String player, String target, String role) {
+        for (ClanMember m : clan.getMemberList()) {
+            if (m == null) continue;
+            Player online = m.getPlayer();
+            if (online == null || !online.isOnline()) continue;
+            ConfigUtil.sendMessage(online, key, ConfigUtil.setHolder(
+                    new String[]{"%player%", "%target%", "%role%"},
+                    new String[]{player, target, role != null ? role : ""}));
+        }
+    }
+
+    @Override
+    public Inventory getInventory() {
+        return inventory;
     }
 
     private static double round(double value) {

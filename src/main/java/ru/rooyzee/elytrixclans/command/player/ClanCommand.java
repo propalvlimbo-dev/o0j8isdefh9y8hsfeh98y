@@ -27,7 +27,7 @@ import ru.rooyzee.elytrixclans.function.impl.sethome.SetHomeFunction;
 import ru.rooyzee.elytrixclans.function.impl.shop.ShopFunction;
 import ru.rooyzee.elytrixclans.hook.impl.VaultHook;
 import ru.rooyzee.elytrixclans.permission.Permissions;
-import ru.rooyzee.elytrixclans.role.Roles;
+import ru.rooyzee.elytrixclans.role.ClanRoles;
 import ru.rooyzee.elytrixclans.utils.ConfigUtil;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
 import ru.rooyzee.elytrixclans.utils.LevelUtil;
@@ -220,7 +220,7 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean handleLeave(Player player, Clan clan, ClanMember member) {
-        if (member.getRole().getName().equals("Лидер")) {
+        if (ClanRoles.LEADER.equals(ClanRoles.normalize(member.getRole().getName()))) {
             ConfigUtil.sendMessage(player, "messages.leaderCantLeave", null);
             return false;
         }
@@ -436,12 +436,16 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
             ConfigUtil.sendMessage(player, "messages.playerNotFound", null);
             return false;
         }
-        if (targetMember.getRole().getName().equals("Модератор") || targetMember.getRole().getName().equals("Лидер")) {
+        if (ClanRoles.isManual(targetMember.getRole().getName())) {
             ConfigUtil.sendMessage(player, "messages.alreadyHasPromote", null);
             return false;
         }
-        targetMember.setRole(new Roles("Модератор",
-                Permissions.SETHOME, Permissions.INVITE, Permissions.KICK, Permissions.PVP, Permissions.GLOW));
+        // Модератора назначает только владелец клана.
+        if (!player.getName().equalsIgnoreCase(clan.getOwner())) {
+            ConfigUtil.sendMessage(player, "messages.onlyOwnerRole", null);
+            return false;
+        }
+        targetMember.setRole(ClanRoles.create(ClanRoles.MODERATOR));
         ConfigUtil.sendMessage(player, "messages.promoted",
                 ConfigUtil.setHolder(new String[]{"%player%"}, new String[]{targetName}));
         return false;
@@ -471,11 +475,16 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
             ConfigUtil.sendMessage(player, "messages.playerNotFound", null);
             return false;
         }
-        if (!targetMember.getRole().getName().equals("Модератор")) {
+        if (!ClanRoles.MODERATOR.equals(ClanRoles.normalize(targetMember.getRole().getName()))) {
             ConfigUtil.sendMessage(player, "messages.notModerator", null);
             return false;
         }
-        targetMember.setRole(new Roles("Участник"));
+        if (!player.getName().equalsIgnoreCase(clan.getOwner())) {
+            ConfigUtil.sendMessage(player, "messages.onlyOwnerRole", null);
+            return false;
+        }
+        // Возвращаем ту роль, которую участник заслужил личным вкладом.
+        targetMember.setRole(ClanRoles.create(ClanRoles.earnedRole(targetMember.getLevel())));
         ConfigUtil.sendMessage(player, "messages.demoted",
                 ConfigUtil.setHolder(new String[]{"%player%"}, new String[]{targetName}));
         return false;
