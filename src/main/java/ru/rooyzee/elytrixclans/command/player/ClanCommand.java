@@ -76,7 +76,7 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
         switch (sub) {
             case "leave": return handleLeave(player, clan, member);
             case "chat": return handleChat(player, clan, args);
-            case "menu": player.openInventory(new InfoFunction(clan).getInventory()); return false;
+            case "menu": player.openInventory(new InfoFunction(clan, player).getInventory()); return false;
             case "home": return handleHome(player, clan);
             case "invite": return handleInvite(player, clan, member, args);
             case "kick": return handleKick(player, clan, member, args);
@@ -95,7 +95,8 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
     private boolean handleInfo(Player player, String[] args) {
         if (args.length == 1) {
             Clan clan = Main.getInstance().getClanManager().getPlayerClan(player);
-            if (clan != null) player.openInventory(new InfoFunction(clan).getInventory());
+            // Свой клан открываем с панелью действий, чужой — в режиме просмотра.
+            if (clan != null) player.openInventory(new InfoFunction(clan, player).getInventory());
             return false;
         }
         if (args[1].length() > 32) {

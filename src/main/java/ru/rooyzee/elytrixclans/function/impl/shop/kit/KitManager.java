@@ -18,6 +18,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import ru.rooyzee.elytrixclans.Main;
+import ru.rooyzee.elytrixclans.function.impl.shop.config.PriceConfiguration;
 import ru.rooyzee.elytrixclans.function.impl.shop.util.BuyManager;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
 import ru.rooyzee.elytrixclans.utils.ShopItemMeta;
@@ -56,6 +57,9 @@ public class KitManager {
             String displayName = HexUtil.translateHexColorCodes(entry.getString("name", key));
             String iconMaterial = entry.getString("material", "SHULKER_BOX").toUpperCase(Locale.ROOT);
             double price = entry.getDouble("price", 100000.0);
+            // Цена набора из shop/prices.yml имеет приоритет.
+            PriceConfiguration prices = Main.getInstance().getPriceConfiguration();
+            if (prices != null) price = prices.kitPrice(key, price);
             int requiredLevel = entry.getInt("level", 1);
 
             List<ItemStack> items = new ArrayList<>();

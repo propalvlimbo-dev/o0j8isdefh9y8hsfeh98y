@@ -92,6 +92,9 @@ public class ItemsConfiguration {
         }
         String name = HexUtil.translateHexColorCodes(entry.getString("name", key));
         double price = entry.getDouble("price", 0.0);
+        // Цена из shop/prices.yml имеет приоритет: там её удобнее править.
+        PriceConfiguration prices = Main.getInstance().getPriceConfiguration();
+        if (prices != null) price = prices.itemPrice(key, price);
         int amount = entry.getInt("amount", 1);
         int level = entry.getInt("level", 1);
         List<String> lore = new ArrayList<>();

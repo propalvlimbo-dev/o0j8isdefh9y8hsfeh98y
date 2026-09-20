@@ -33,6 +33,9 @@ public class KitPreviewInventory implements InventoryHolder {
     };
 
     private final Inventory inventory;
+    /** Для живого таймера на кнопке покупки. */
+    private final Player viewer;
+    private final Kit kit;
     private final int shopPage;
 
     public KitPreviewInventory(Player player, Kit kit, int shopPage) {
@@ -59,6 +62,22 @@ public class KitPreviewInventory implements InventoryHolder {
                 Main.getInstance().getBuyManager().getBalance(player)));
         inventory.setItem(49, buyButton(player, kit, clan));
         inventory.setItem(45, MenuUtil.createBackButton());
+
+        this.viewer = player;
+        this.kit = kit;
+    }
+
+    /**
+     * Обновление кнопки покупки раз в секунду (вызывает ShopTicker): таймер перезарядки
+     * тикает на месте, а как только время вышло — барьер сам превращается в кнопку покупки.
+     */
+    public void tickCooldown() {
+        if (viewer == null || !viewer.isOnline() || kit == null) return;
+        Main main = Main.getInstance();
+        if (main == null || main.getBuyManager() == null) return;
+        Clan clan = main.getClanManager() != null ? main.getClanManager().getPlayerClan(viewer) : null;
+        inventory.setItem(49, buyButton(viewer, kit, clan));
+        inventory.setItem(4, MenuUtil.createInfoItem(clan, main.getBuyManager().getBalance(viewer)));
     }
 
     private ItemStack commandsInfo(Kit kit) {

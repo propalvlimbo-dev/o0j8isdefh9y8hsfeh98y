@@ -11,7 +11,9 @@ import ru.rooyzee.elytrixclans.database.IDataBase;
 import ru.rooyzee.elytrixclans.database.impl.YAMLDataBase;
 import ru.rooyzee.elytrixclans.function.impl.glow.GlowManager;
 import ru.rooyzee.elytrixclans.function.impl.glow.GlowPacketListener;
+import ru.rooyzee.elytrixclans.function.impl.shop.ShopTicker;
 import ru.rooyzee.elytrixclans.function.impl.shop.config.ItemsConfiguration;
+import ru.rooyzee.elytrixclans.function.impl.shop.config.PriceConfiguration;
 import ru.rooyzee.elytrixclans.function.impl.shop.kit.KitManager;
 import ru.rooyzee.elytrixclans.function.impl.shop.util.BuyManager;
 import ru.rooyzee.elytrixclans.function.impl.shop.util.PurchaseCooldownStorage;
@@ -39,6 +41,7 @@ public final class Main extends JavaPlugin {
     private IDataBase dataBase;
     private ClanManager clanManager;
     private ItemsConfiguration itemsConfiguration;
+    private PriceConfiguration priceConfiguration;
     private LevelConfiguration levelConfiguration;
     private GlowManager glowManager;
     private KitManager kitManager;
@@ -58,6 +61,8 @@ public final class Main extends JavaPlugin {
         saveResource("levels.yml", false);
         saveResource("shop/shop_item.yml", false);
 
+        // Цены читаем раньше ассортимента: ItemsConfiguration сразу применяет переопределения.
+        priceConfiguration = new PriceConfiguration();
         itemsConfiguration = new ItemsConfiguration();
         levelConfiguration = new LevelConfiguration(this);
         kitManager = new KitManager();
@@ -74,6 +79,8 @@ public final class Main extends JavaPlugin {
 
         // Кэш голов: без него меню кланов дёргает Mojang синхронно в main-потоке (лаги на /clan info).
         PlayerHeadCache.register(this);
+        // Живые таймеры перезарядки в открытых меню магазина.
+        ShopTicker.start(this);
 
         try {
             glowManager = new GlowManager();
@@ -135,6 +142,7 @@ public final class Main extends JavaPlugin {
         if (killCooldownStorage != null) killCooldownStorage.shutdown();
         if (purchaseCooldownStorage != null) purchaseCooldownStorage.shutdown();
         PlayerHeadCache.shutdown();
+        ShopTicker.stop();
         if (dataBase != null) {
             try {
                 // При выключении пишем синхронно: асинхронные задачи уже отменены.
@@ -154,6 +162,8 @@ public final class Main extends JavaPlugin {
     public void reloadEverything() {
         reloadConfig();
         if (levelConfiguration != null) levelConfiguration.reloadYml();
+        // Цены перечитываем перед ассортиментом и наборами — они их применяют.
+        if (priceConfiguration != null) priceConfiguration.reloadYml();
         if (itemsConfiguration != null) itemsConfiguration.reloadYml();
         if (kitManager != null) kitManager.load();
         if (clanManager != null) clanManager.rebuildIndexes();
@@ -162,6 +172,7 @@ public final class Main extends JavaPlugin {
     public static Main getInstance() { return INSTANCE; }
     public ClanManager getClanManager() { return clanManager; }
     public ItemsConfiguration getItemsConfiguration() { return itemsConfiguration; }
+    public PriceConfiguration getPriceConfiguration() { return priceConfiguration; }
     public LevelConfiguration getLevelConfiguration() { return levelConfiguration; }
     public IDataBase getDataBase() { return dataBase; }
     public GlowManager getGlowManager() { return glowManager; }

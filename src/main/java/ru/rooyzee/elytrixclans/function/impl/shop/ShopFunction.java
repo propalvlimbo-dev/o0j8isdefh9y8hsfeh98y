@@ -40,6 +40,9 @@ public class ShopFunction implements InventoryHolder {
 
     public static final String NBT_PAGE = "clanShopPage";
     public static final String NBT_KIT = "clanShopKit";
+    /** Пометки позиций, у которых в лоре тикает таймер перезарядки. */
+    public static final String NBT_COOLDOWN_ITEM = "clanShopCdItem";
+    public static final String NBT_COOLDOWN_KIT = "clanShopCdKit";
 
     /** Слоты под товар. 10, 16, 37 и 43 добавлены сюда — стекла там больше нет. */
     public static final int[] CONTENT_SLOTS = {
@@ -54,6 +57,10 @@ public class ShopFunction implements InventoryHolder {
 
     private final Inventory inventory;
     private final int page;
+    /** Владелец открытого меню — нужен тикеру, который обновляет таймеры перезарядки. */
+    private final Player viewer;
+    /** Уровень клана на момент сборки: если он вырос, меню пересобирается целиком. */
+    private final int builtForLevel;
 
     public ShopFunction(Player player) {
         this(player, 0);
@@ -77,6 +84,8 @@ public class ShopFunction implements InventoryHolder {
         Clan clan = Main.getInstance().getClanManager().getPlayerClan(player);
         int clanLevel = clanLevel(clan);
         double balance = Main.getInstance().getBuyManager().getBalance(player);
+        this.viewer = player;
+        this.builtForLevel = clanLevel;
 
         int from = page * CONTENT_SLOTS.length;
         for (int i = 0; i < CONTENT_SLOTS.length; i++) {
@@ -145,6 +154,12 @@ public class ShopFunction implements InventoryHolder {
         long cooldown = locked ? 0L
                 : Main.getInstance().getBuyManager().remainingCooldown(player, BuyManager.itemKey(shopItem));
 
+        // Позиция ещё не открыта: ни названия, ни цены, ни количества — только нужный уровень.
+        // Так витрина не спойлерит содержимое будущих уровней.
+        if (locked) {
+            return lockedIcon(shopItem.getRequiredLevel());
+        }
+
         List<String> lore = new ArrayList<>();
         lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
         lore.addAll(shopItem.getLore());
@@ -158,11 +173,11 @@ public class ShopFunction implements InventoryHolder {
                 + shopItem.getRequiredLevel()));
         lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
 
-        if (locked) {
-            return lockedIcon(shopItem.getName(), lore, shopItem.getRequiredLevel());
-        }
         if (cooldown > 0) {
-            return cooldownIcon(shopItem.getName(), lore, cooldown);
+            ItemStack barrier = cooldownIcon(shopItem.getName(), lore, cooldown);
+            // Кулдаун тикает: помечаем позицию, чтобы таймер обновлялся прямо в открытом меню.
+            NBTUtil.addItemNBT(barrier, NBT_COOLDOWN_ITEM, shopItem.getId());
+            return barrier;
         }
         lore.add(HexUtil.translateHexColorCodes("&7● &fНажмите для покупки"));
         return ItemsConfiguration.buildDisplayItem(shopItem, lore);
@@ -172,6 +187,11 @@ public class ShopFunction implements InventoryHolder {
         boolean locked = clanLevel < kit.getRequiredLevel();
         long cooldown = locked ? 0L
                 : Main.getInstance().getBuyManager().remainingCooldown(player, BuyManager.kitKey(kit));
+
+        // Как и с товарами: закрытый уровнем набор не показывает ни названия, ни состава.
+        if (locked) {
+            return lockedIcon(kit.getRequiredLevel());
+        }
 
         List<String> lore = new ArrayList<>();
         lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
@@ -183,14 +203,10 @@ public class ShopFunction implements InventoryHolder {
                 + kit.getRequiredLevel()));
         lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
 
-        if (locked) {
-            ItemStack barrier = lockedIcon(kit.getDisplayName(), lore, kit.getRequiredLevel());
-            NBTUtil.addItemNBT(barrier, NBT_KIT, kit.getId());
-            return barrier;
-        }
         if (cooldown > 0) {
             ItemStack barrier = cooldownIcon(kit.getDisplayName(), lore, cooldown);
             NBTUtil.addItemNBT(barrier, NBT_KIT, kit.getId());
+            NBTUtil.addItemNBT(barrier, NBT_COOLDOWN_KIT, kit.getId());
             return barrier;
         }
 
@@ -210,15 +226,16 @@ public class ShopFunction implements InventoryHolder {
     }
 
     /**
-     * Недоступная по уровню позиция — барьер с явной подписью, на каком уровне откроется.
-     * Сам предмет не показываем: иконка не должна выглядеть как доступный к покупке товар.
+     * Недоступная по уровню позиция. Ни название, ни цена, ни количество не показываются:
+     * игрок видит только то, на каком уровне клана здесь что-то появится.
      */
-    private ItemStack lockedIcon(String displayName, List<String> baseLore, int requiredLevel) {
-        List<String> lore = new ArrayList<>(baseLore);
-        lore.add(HexUtil.translateHexColorCodes("&c● Недоступно"));
-        lore.add(HexUtil.translateHexColorCodes("&c● Откроется на &#F8BEFB" + requiredLevel
-                + " &cуровне клана"));
-        return barrier(displayName, lore);
+    private ItemStack lockedIcon(int requiredLevel) {
+        List<String> lore = new ArrayList<>();
+        lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
+        lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fОткроется на &#F8BEFB"
+                + requiredLevel + " &fуровне клана"));
+        lore.add(HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "));
+        return barrier(HexUtil.translateHexColorCodes("&7« &cЗакрыто &7»"), lore);
     }
 
     /** Позиция на кулдауне — тоже барьер, с остатком времени. */
@@ -242,7 +259,8 @@ public class ShopFunction implements InventoryHolder {
     }
 
     private ItemStack pageButton(boolean next, int currentPage) {
-        ItemStack item = new ItemStack(next ? Material.LIME_DYE : Material.BLACK_DYE);
+        // Обе кнопки — чёрный краситель: так они смотрятся как одна пара элементов навигации.
+        ItemStack item = new ItemStack(Material.BLACK_DYE);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(HexUtil.translateHexColorCodes(next
@@ -254,6 +272,51 @@ public class ShopFunction implements InventoryHolder {
         }
         NBTUtil.addItemNBT(item, NBT_PAGE, String.valueOf(next ? currentPage + 1 : currentPage - 1));
         return item;
+    }
+
+    /**
+     * Обновление таймеров в уже открытом меню — вызывается раз в секунду из ShopTicker.
+     *
+     * Раньше, чтобы увидеть новое время (или дождаться, когда позиция снова станет
+     * доступной), меню приходилось закрывать и открывать. Теперь лор барьера перерисовывается
+     * на месте, а как только перезарядка кончилась — на слот возвращается сам товар.
+     */
+    public void tickCooldowns() {
+        if (viewer == null || !viewer.isOnline()) return;
+        Main main = Main.getInstance();
+        if (main == null || main.getBuyManager() == null) return;
+
+        Clan clan = main.getClanManager() != null ? main.getClanManager().getPlayerClan(viewer) : null;
+        int clanLevel = clanLevel(clan);
+        // Клан взял новый уровень, пока меню открыто: перерисовываем всю страницу,
+        // иначе только что открывшиеся позиции остались бы барьерами.
+        if (clanLevel != builtForLevel) {
+            viewer.openInventory(new ShopFunction(viewer, page).getInventory());
+            return;
+        }
+
+        for (int slot : CONTENT_SLOTS) {
+            ItemStack current = inventory.getItem(slot);
+            if (current == null) continue;
+
+            String itemId = NBTUtil.getNBTvalue(current, NBT_COOLDOWN_ITEM);
+            if (itemId != null) {
+                ShopItem shopItem = main.getItemsConfiguration() != null
+                        ? main.getItemsConfiguration().getItem(itemId) : null;
+                if (shopItem != null) {
+                    inventory.setItem(slot, buildItemIcon(viewer, shopItem, clanLevel));
+                }
+                continue;
+            }
+
+            String kitId = NBTUtil.getNBTvalue(current, NBT_COOLDOWN_KIT);
+            if (kitId != null) {
+                Kit kit = main.getKitManager() != null ? main.getKitManager().getKit(kitId) : null;
+                if (kit != null) {
+                    inventory.setItem(slot, buildKitIcon(viewer, kit, clanLevel));
+                }
+            }
+        }
     }
 
     public void onInventoryClick(InventoryClickEvent event) {
