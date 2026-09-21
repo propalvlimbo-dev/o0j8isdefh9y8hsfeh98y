@@ -38,9 +38,9 @@ public final class InviteMessageUtil {
     }
 
     private static BaseComponent[] buildButtons() {
-        String prefix = string("messages.inviteButtonsPrefix", "&f☁ &7» ");
-        String acceptText = string("messages.inviteAcceptButton", "&a✔ Принять");
-        String declineText = string("messages.inviteDeclineButton", "&c✖ Отклонить");
+        String prefix = string("messages.inviteButtonsPrefix", "&8   ");
+        String acceptText = string("messages.inviteAcceptButton", "&a&lПРИНЯТЬ");
+        String declineText = string("messages.inviteDeclineButton", "&c&lОТКЛОНИТЬ");
         String acceptHover = string("messages.inviteAcceptHover", "&aВступить в клан");
         String declineHover = string("messages.inviteDeclineHover", "&cОтказаться от приглашения");
 
@@ -48,7 +48,7 @@ public final class InviteMessageUtil {
         builder.append(components(prefix), ComponentBuilder.FormatRetention.NONE);
         builder.append(button(acceptText, acceptHover, "/clan accept"),
                 ComponentBuilder.FormatRetention.NONE);
-        builder.append(components("   &8│   "), ComponentBuilder.FormatRetention.NONE);
+        builder.append(components("     "), ComponentBuilder.FormatRetention.NONE);
         builder.append(button(declineText, declineHover, "/clan decline"),
                 ComponentBuilder.FormatRetention.NONE);
         return builder.create();

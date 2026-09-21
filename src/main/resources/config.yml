@@ -57,7 +57,38 @@ noClanPlaceholder: "&#F8BEFBБез клана"
 # пробелом, так что лишнего отступа после ника не будет.
 clanTagFormat: " %color%%clan%"
 
+
+# --- Ивент «Талисман» ---------------------------------------------------------------
+# Награды выдаёт ElytrixClans, а не сам талисман: команда
+#   /elytrixclan talisman <ник1> [ник2 ...]
+# либо вызов TalismanRewards.reward(список ников) из кода.
+#
+# Клановый опыт даётся ОДИН раз за победу и не зависит от числа захватчиков — иначе
+# большой клан фармил бы топ просто количеством людей. А вот призовые монеты делятся
+# между теми, кто реально удерживал точку.
+talisman:
+  # Опыт клану за захват (один раз, независимо от числа участников).
+  clan-exp: 150.0
+  # Личный вклад каждому захватчику. По вкладу растут роли внутри клана.
+  exp-per-holder: 50.0
+  # Общий призовой фонд в монетах. Делится поровну между захватчиками:
+  # 1 игрок → 30000, 2 → по 15000, 3 → по 10000, 6 → по 5000.
+  money-pool: 30000.0
+  # Нижняя граница выплаты: даже если захватчиков много, меньше этого не дадим.
+  money-min-share: 2500.0
+  # Объявлять победу в общий чат.
+  announce: true
+
+# --- Выгрузка топа для сайта --------------------------------------------------------
+# Плагин раз в interval-seconds пишет plugins/ElytrixClans/export/clans.json.
+# Оттуда его читает плагин-мост сайта. Файл пишется атомарно, недописанный не увидеть.
+export:
+  enabled: true
+  interval-seconds: 60
+
 messages:
+  # Объявление победы в ивенте «Талисман». %clan% %players% %exp% %money% %count%
+  talismanWin: "&f☁ ᴇʟʏᴛʀɪx &7» &fКлан &#F8BEFB%clan% &fзабрал талисман: &#F8BEFB+%exp% &fопыта и &#F8BEFB%money% &fмонет каждому из &#F8BEFB%count% &fзахватчиков &7(%players%&7)"
   configReload:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aКонфиг перезагружен"
   blockedName:
@@ -71,9 +102,9 @@ messages:
   inviteDeclinedByTarget:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИгрок &#F8BEFB%player% &cотклонил &fприглашение"
   # Кнопки под сообщением о приглашении: нажимаются мышью в чате.
-  inviteButtonsPrefix: "&f☁ &7» "
-  inviteAcceptButton: "&a✔ Принять"
-  inviteDeclineButton: "&c✖ Отклонить"
+  inviteButtonsPrefix: "&8   "
+  inviteAcceptButton: "&a&lПРИНЯТЬ"
+  inviteDeclineButton: "&c&lОТКЛОНИТЬ"
   inviteAcceptHover: "&aВступить в клан"
   inviteDeclineHover: "&cОтказаться от приглашения"
   createdSuccessfully:

@@ -12,6 +12,8 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import ru.rooyzee.elytrixclans.Main;
 import ru.rooyzee.elytrixclans.clans.Clan;
+import ru.rooyzee.elytrixclans.api.TalismanRewards;
+import ru.rooyzee.elytrixclans.export.ClanExporter;
 import ru.rooyzee.elytrixclans.function.impl.shop.admin.ShopEditInventory;
 import ru.rooyzee.elytrixclans.utils.ConfigUtil;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
@@ -47,6 +49,8 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
         else if (sub.equals("set")) return handleSet(sender, args);
         else if (sub.equals("remove")) return handleRemove(sender, args);
         else if (sub.equals("addexp")) return handleAddExp(sender, args);
+        else if (sub.equals("talisman")) return handleTalisman(sender, args);
+        else if (sub.equals("export")) return handleExport(sender);
 
         usage(sender);
         return false;
@@ -60,6 +64,39 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
         }
         Player player = (Player) sender;
         player.openInventory(new ShopEditInventory(player).getInventory());
+        return false;
+    }
+
+    /**
+     * /elytrixclan talisman <ник1> [ник2 ...] — выдать награды за захват талисмана.
+     * Ровно та же логика, что и у TalismanRewards.reward(): команда нужна плагинам,
+     * которые не хотят компилироваться против ElytrixClans.
+     */
+    private boolean handleTalisman(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(HexUtil.translateHexColorCodes(
+                    "&c/elytrixclan talisman <ник1> [ник2 ...]"));
+            return false;
+        }
+        List<String> holders = new ArrayList<>(Arrays.asList(args).subList(1, args.length));
+        TalismanRewards.Result result = TalismanRewards.reward(holders);
+        if (!result.isSuccess()) {
+            sender.sendMessage(HexUtil.translateHexColorCodes(
+                    "&f☁ &7» &cТалисман: " + result.getError()));
+            return false;
+        }
+        sender.sendMessage(HexUtil.translateHexColorCodes("&f☁ &7» &aТалисман: клан &f"
+                + result.getClanName() + " &aполучил &f" + (long) result.getClanExp()
+                + " &aопыта, по &f" + (long) result.getMoneyEach() + " &aмонет на "
+                + result.getRewarded().size() + " игрок(ов)"));
+        return false;
+    }
+
+    /** /elytrixclan export — принудительно перезаписать clans.json для сайта. */
+    private boolean handleExport(CommandSender sender) {
+        ClanExporter.export();
+        sender.sendMessage(HexUtil.translateHexColorCodes(
+                "&f☁ &7» &aТоп выгружен: &f" + ClanExporter.file().getPath()));
         return false;
     }
 
@@ -153,12 +190,15 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan remove <clan>"));
         sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan reload"));
         sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan edititem &7— витрина магазина и наборы"));
+        sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan talisman <ник...> &7— награды за талисман"));
+        sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan export &7— выгрузить топ для сайта"));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return filter(Arrays.asList("set", "remove", "reload", "addexp", "edititem"), args[0]);
+            return filter(Arrays.asList("set", "remove", "reload", "addexp", "edititem",
+                    "talisman", "export"), args[0]);
         }
         if (args.length == 2) {
             List<String> options = new ArrayList<>();
@@ -167,7 +207,7 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
                     options.add(clan.getName());
                 }
             }
-            if (args[0].equalsIgnoreCase("addexp")) {
+            if (args[0].equalsIgnoreCase("addexp") || args[0].equalsIgnoreCase("talisman")) {
                 for (Player online : Bukkit.getOnlinePlayers()) {
                     options.add(online.getName());
                 }

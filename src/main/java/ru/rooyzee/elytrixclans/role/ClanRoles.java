@@ -15,7 +15,7 @@ import ru.rooyzee.elytrixclans.permission.Permissions;
  *     Опытный  — 200 личного опыта. Прав столько же, это знак заслуг перед кланом.
  *
  *  2. Выдаются вручную владельцем клана:
- *     Модератор — может кикать из клана, переключать PvP и менять подсветку клана.
+ *     Модератор — приглашает и кикает, переключает PvP и меняет подсветку клана.
  *     Лидер     — все права.
  *
  * Весь плагин обращается к ролям только через этот класс, чтобы набор прав у роли
@@ -44,7 +44,7 @@ public final class ClanRoles {
         }
         if (MODERATOR.equals(normalized)) {
             return new Roles(MODERATOR, Permissions.SHOP, Permissions.KICK,
-                    Permissions.PVP, Permissions.GLOW);
+                    Permissions.PVP, Permissions.GLOW, Permissions.INVITE);
         }
         if (VETERAN.equals(normalized)) {
             return new Roles(VETERAN, Permissions.SHOP);

@@ -110,7 +110,7 @@ public class MemberInventory implements InventoryHolder {
         roleButton(SLOT_VETERAN, Material.IRON_HELMET, ClanRoles.VETERAN, role,
                 "Знак заслуг, доступ к магазину");
         roleButton(SLOT_MODERATOR, Material.DIAMOND_HELMET, ClanRoles.MODERATOR, role,
-                "Кик, PvP и подсветка клана");
+                "Приглашение, кик, PvP и подсветка");
         roleButton(SLOT_LEADER, Material.NETHERITE_HELMET, ClanRoles.LEADER, role,
                 "&cВы сами станете Новичком");
 

@@ -4,6 +4,7 @@ import com.comphenix.protocol.ProtocolLibrary;
 import java.util.Arrays;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
+import ru.rooyzee.elytrixclans.export.ClanExporter;
 import ru.rooyzee.elytrixclans.api.ClanManager;
 import ru.rooyzee.elytrixclans.command.admin.AdminCommand;
 import ru.rooyzee.elytrixclans.command.player.ClanCommand;
@@ -131,6 +132,9 @@ public final class Main extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new ArmorUpdateListener(), this);
         Bukkit.getPluginManager().registerEvents(new ShopEditListener(), this);
 
+        // Выгрузка топа кланов в JSON для сайта (plugins/ElytrixClans/export/clans.json).
+        ClanExporter.start(this);
+
         getLogger().info("ElytrixClans loaded successfully");
         // Маркер сборки: если его нет в логе запуска, jar не обновился.
         getLogger().info("Build 2026-09-20: магазин на монетах Vault, опыт только за PvP и Талисман");
@@ -145,6 +149,7 @@ public final class Main extends JavaPlugin {
         if (purchaseCooldownStorage != null) purchaseCooldownStorage.shutdown();
         PlayerHeadCache.shutdown();
         ShopTicker.stop();
+        ClanExporter.stop();
         if (dataBase != null) {
             try {
                 // При выключении пишем синхронно: асинхронные задачи уже отменены.
