@@ -97,7 +97,7 @@ public class ClanPlaceholder extends PlaceholderExpansion {
             if (clan == null) return "";
             String color = LevelUtil.getClanLevel(clan.getExp()).getColor();
             // Формат настраивается в config.yml: clanTagFormat.
-            String format = main.getConfig().getString("clanTagFormat", "&7[%color%%clan%&7] ");
+            String format = main.getConfig().getString("clanTagFormat", " %color%%clan%");
             if (format == null || format.isEmpty()) return "";
             return HexUtil.translateHexColorCodes(format
                     .replace("%color%", color)

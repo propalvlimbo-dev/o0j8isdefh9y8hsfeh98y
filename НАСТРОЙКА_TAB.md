@@ -24,7 +24,7 @@
 
 Плагин отдаёт плейсхолдер `%elytrixclans_clan_tag%`:
 
-- игрок **в клане** → `[Название] ` в цвете уровня клана (с пробелом на конце);
+- игрок **в клане** → ` Название` в цвете уровня клана (пробел в начале, скобок нет);
 - игрок **без клана** → **пустая строка**.
 
 Именно поэтому у безклановых над головой не останется ни скобок, ни лишнего пробела.
@@ -32,11 +32,12 @@
 Вид тега меняется в `plugins/ElytrixClans/config.yml` без пересборки:
 
 ```yaml
-clanTagFormat: "&7[%color%%clan%&7] "
+clanTagFormat: " %color%%clan%"
 ```
 
 `%clan%` — название, `%color%` — цвет по уровню клана из `levels.yml`.
-Например, чтобы убрать скобки: `clanTagFormat: "%color%%clan% "`.
+Например, чтобы вернуть скобки: `clanTagFormat: " &7[%color%%clan%&7]"`.
+Пробел в начале обязателен — иначе клан слипнется с ником.
 
 После правки — `/elytrixclan reload`.
 
@@ -49,14 +50,8 @@ clanTagFormat: "&7[%color%%clan%&7] "
 
 ### 2.2. `groups.yml` — основная правка
 
-Это ваш текущий файл. Титул над головой даёт строка `tagsuffix`:
-
-```yaml
-default:
-  tagsuffix: '&r%luckperms_suffix%'   # <-- титул над головой
-_DEFAULT_:
-  tagsuffix: '%luckperms_suffix%'     # <-- и здесь тоже
-```
+Клан выводится ПОСЛЕ ника, поэтому тег ставится в `tagsuffix`, а не в `tagprefix`.
+Титул из `tagsuffix` при этом убирается — он остаётся только в табе (`tabsuffix`).
 
 Замените содержимое `plugins/TAB/groups.yml` на это (готовый файл лежит
 рядом — `groups_TAB_готовый.yml`):
@@ -67,29 +62,23 @@ default:
   # Таб: донат + ник + титул (как было)
   tabprefix: '%luckperms_prefix%&7'
   tabsuffix: '%luckperms_suffix%'
-  # Над головой: донат + клан + ник, титула нет
-  tagprefix: '%luckperms_prefix%%elytrixclans_clan_tag%&7'
-  tagsuffix: ''
+  # Над головой: донат + ник + клан, титула нет
+  tagprefix: '%luckperms_prefix%&7'
+  tagsuffix: '%elytrixclans_clan_tag%'
 _DEFAULT_:
   tabprefix: '%luckperms_prefix%&7'
   tabsuffix: '%luckperms_suffix%'
-  tagprefix: '%luckperms_prefix%%elytrixclans_clan_tag%&7'
-  tagsuffix: ''
+  tagprefix: '%luckperms_prefix%&7'
+  tagsuffix: '%elytrixclans_clan_tag%'
 ```
 
-Что изменилось ровно в двух местах каждой группы:
+Изменение ровно одно в каждой группе: в `tagsuffix` вместо
+`%luckperms_suffix%` (титул) встал `%elytrixclans_clan_tag%` (клан).
+`tagprefix`, `tabprefix` и `tabsuffix` остались как были.
 
-- `tagsuffix` стал пустым — титул над головой пропал;
-- в `tagprefix` добавлен `%elytrixclans_clan_tag%` — появился клан.
-
-`tabprefix` и `tabsuffix` не тронуты, так что таб выглядит как раньше.
-
-Про `&7` в конце `tagprefix`: он красит ник в серый и должен остаться
-последним, уже после тега клана — иначе цвет клана «потечёт» на ник.
-
-Блоки `default` и `_DEFAULT_` — это разные вещи: `_DEFAULT_` применяется ко
-всем группам, у которых нет своей секции, а `default` — к конкретной группе
-с именем «default». Правим оба, как в примере.
+Блоки `default` и `_DEFAULT_` — разные вещи: `_DEFAULT_` применяется ко всем
+группам без своей секции, а `default` — к конкретной группе с именем
+«default». Правим оба.
 
 ### 2.3. Обновление тега при смене клана
 
@@ -111,8 +100,8 @@ placeholder-refresh-intervals:
 
 ## Результат
 
-- Игрок без клана, над головой: `[Донат] Ник`
-- Игрок в клане, над головой: `[Донат] [Клан] Ник`
+- Игрок без клана, над головой: `OWNER Ник`
+- Игрок в клане, над головой: `OWNER Ник Клан`
 - В табе у обоих: `[Донат] Ник БЕТА` — титул на месте, клана нет.
 
 ## Если титул всё равно остался над головой
@@ -127,7 +116,7 @@ placeholder-refresh-intervals:
 
 | Плейсхолдер | Значение | Без клана |
 |---|---|---|
-| `%elytrixclans_clan_tag%` | `[Клан] ` в цвете уровня | пусто |
+| `%elytrixclans_clan_tag%` | ` Клан` в цвете уровня | пусто |
 | `%elytrixclans_clan_name%` | название в цвете уровня | пусто |
 | `%elytrixclans_clan_name_plain%` | название без цветов | пусто |
 | `%elytrixclans_clan_name_board%` | название для скорборда | `Без клана` |
