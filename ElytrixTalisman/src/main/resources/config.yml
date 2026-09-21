@@ -32,6 +32,10 @@ talisman:
 loot:
   points-per-drop: 100
   items-per-player: 2
+# Сколько мест награждается. Размеры наград задаются НЕ здесь, а в config.yml
+# плагина ElytrixClans (секция talisman.places) — чтобы опыт и монеты не были
+# прописаны в двух местах сразу.
+reward-places: 3
 stop-countdown: 10
 disable-god: true
 disable-fly: true

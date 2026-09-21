@@ -1,8 +1,9 @@
 package ru.rooyzee.elytrixtalisman.service;
 
 import org.bukkit.entity.Player;
-import ru.rooyzee.elytrixclans.Main;
+import java.util.List;
 import ru.rooyzee.elytrixclans.api.ClanManager;
+import ru.rooyzee.elytrixclans.api.TalismanRewards;
 import ru.rooyzee.elytrixclans.clans.Clan;
 
 public class ClanService {
@@ -23,11 +24,15 @@ public class ClanService {
         return getClanManager().getClanByName(name);
     }
 
-    public void addExp(Clan clan, double amount) {
-        clan.setExp(clan.getExp() + amount);
-    }
-
-    public void addPoints(Clan clan, double amount) {
-        clan.setPoints(clan.getPoints() + amount);
+    /**
+     * Награды за занятое место отдаём на сторону кланов: там и опыт клана, и личный вклад
+     * участников, и монеты Vault, и объявление — всё настраивается в config.yml кланов.
+     *
+     * Раньше здесь было clan.setExp(...) напрямую и clan.setPoints(...). Так делать нельзя:
+     * прямая установка опыта проходит мимо проверки уровня (клан не получал сообщение о
+     * повышении), а поинтов в кланах больше нет вообще — валюта теперь одна, монеты Vault.
+     */
+    public TalismanRewards.Result giveReward(String clanName, List<String> holders, int place) {
+        return TalismanRewards.rewardPlace(clanName, holders, place);
     }
 }

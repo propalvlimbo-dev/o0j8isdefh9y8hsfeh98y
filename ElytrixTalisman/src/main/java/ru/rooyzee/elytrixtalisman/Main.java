@@ -25,6 +25,7 @@ public final class Main extends JavaPlugin {
     private SchematicService schematicService;
     private BossBarService bossBarService;
     private RewardService rewardService;
+    private PlayerParticipationTracker participationTracker;
     private EssentialsService essentialsService;
     private LootService lootService;
     private HologramService hologramService;
@@ -48,7 +49,8 @@ public final class Main extends JavaPlugin {
         regionService = new RegionService(configManager);
         schematicService = new SchematicService(this);
         bossBarService = new BossBarService(configManager);
-        rewardService = new RewardService(configManager, clanService, messageService);
+        participationTracker = new PlayerParticipationTracker();
+        rewardService = new RewardService(configManager, participationTracker, messageService);
         essentialsService = new EssentialsService(configManager);
         lootService = new LootService(this);
         hologramService = new HologramService();
@@ -57,7 +59,8 @@ public final class Main extends JavaPlugin {
 
         talismanManager = new TalismanManager(this, configManager, messageService, clanService,
                 locationService, regionService, schematicService, bossBarService, rewardService,
-                essentialsService, lootService, hologramService, totemService, particleService);
+                essentialsService, lootService, hologramService, totemService, particleService,
+                participationTracker);
 
         scheduleManager = new ScheduleManager(this, configManager, talismanManager, messageService);
         scheduleManager.scheduleAll();

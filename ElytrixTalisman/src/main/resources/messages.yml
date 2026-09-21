@@ -15,7 +15,8 @@ reward-broadcast:
   - "&#F8BEFB&l┃ &fКлан: &#F8BEFB%clan%"
   - "&#F8BEFB&l┃ &fОчки захвата: &#F8BEFB%capture_points%"
   - "&#F8BEFB&l┃ &fУбийств: &#F8BEFB%kills% &8| &fСмертей: &#F8BEFB%deaths%"
-  - "&#F8BEFB&l┃ &fНаграда: &a%exp% опыта &8+ &a%points% коинов"
+  - "&#F8BEFB&l┃ &fКлану: &a+%exp% опыта"
+  - "&#F8BEFB&l┃ &fЗахватчикам: &a%money% монет &7каждому из %holders%"
   - ""
 
 not-enough-online:

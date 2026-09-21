@@ -54,7 +54,8 @@ public class TalismanManager {
                            SchematicService schematicService, BossBarService bossBarService,
                            RewardService rewardService, EssentialsService essentialsService,
                            LootService lootService, HologramService hologramService,
-                           TotemService totemService, ParticleService particleService) {
+                           TotemService totemService, ParticleService particleService,
+                           PlayerParticipationTracker participationTracker) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.messageService = messageService;
@@ -69,7 +70,7 @@ public class TalismanManager {
         this.hologramService = hologramService;
         this.totemService = totemService;
         this.particleService = particleService;
-        this.participationTracker = new PlayerParticipationTracker();
+        this.participationTracker = participationTracker;
     }
 
     public boolean isRunning() {
@@ -86,6 +87,8 @@ public class TalismanManager {
         lastDropBank = 0;
         activePlayers.clear();
         deathCooldown.clear();
+        // Полный сброс: списки захватчиков прошлого ивента не должны попасть в награды.
+        participationTracker.resetSession();
 
         Location loc = locationService.findSafeLocation();
         if (loc == null) {
@@ -172,6 +175,8 @@ public class TalismanManager {
                     data.addCapturePoints(pointsPerStand);
                     session.addBank(pointsPerStand);
                     participationTracker.addPlayer(player.getUniqueId());
+                    // Поимённо: по этому списку кланы в конце раздадут опыт и монеты.
+                    participationTracker.addHolder(clan.getName(), player.getName());
 
                     Map<String, String> abPh = new HashMap<>();
                     abPh.put("%bank%", String.valueOf(session.getBank()));

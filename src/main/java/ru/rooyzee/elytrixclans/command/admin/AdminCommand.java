@@ -68,27 +68,36 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
     }
 
     /**
-     * /elytrixclan talisman <ник1> [ник2 ...] — выдать награды за захват талисмана.
-     * Ровно та же логика, что и у TalismanRewards.reward(): команда нужна плагинам,
-     * которые не хотят компилироваться против ElytrixClans.
+     * /elytrixclan talisman <место> <клан> [ник1 ник2 ...] — награды за талисман.
+     * Команда нужна плагинам, которые не хотят компилироваться против ElytrixClans;
+     * логика та же, что и у TalismanRewards.rewardPlace().
      */
     private boolean handleTalisman(CommandSender sender, String[] args) {
-        if (args.length < 2) {
+        if (args.length < 3) {
             sender.sendMessage(HexUtil.translateHexColorCodes(
-                    "&c/elytrixclan talisman <ник1> [ник2 ...]"));
+                    "&c/elytrixclan talisman <место> <клан> [ник1 ник2 ...]"));
             return false;
         }
-        List<String> holders = new ArrayList<>(Arrays.asList(args).subList(1, args.length));
-        TalismanRewards.Result result = TalismanRewards.reward(holders);
+        int place;
+        try {
+            place = Integer.parseInt(args[1]);
+        } catch (NumberFormatException e) {
+            sender.sendMessage(HexUtil.translateHexColorCodes("&c Место должно быть числом"));
+            return false;
+        }
+        List<String> holders = new ArrayList<>();
+        if (args.length > 3) holders.addAll(Arrays.asList(args).subList(3, args.length));
+
+        TalismanRewards.Result result = TalismanRewards.rewardPlace(args[2], holders, place);
         if (!result.isSuccess()) {
             sender.sendMessage(HexUtil.translateHexColorCodes(
                     "&f☁ &7» &cТалисман: " + result.getError()));
             return false;
         }
-        sender.sendMessage(HexUtil.translateHexColorCodes("&f☁ &7» &aТалисман: клан &f"
-                + result.getClanName() + " &aполучил &f" + (long) result.getClanExp()
-                + " &aопыта, по &f" + (long) result.getMoneyEach() + " &aмонет на "
-                + result.getRewarded().size() + " игрок(ов)"));
+        sender.sendMessage(HexUtil.translateHexColorCodes("&f☁ &7» &aТалисман: место &f#"
+                + result.getPlace() + "&a, клан &f" + result.getClanName() + " &a— &f"
+                + (long) result.getClanExp() + " &aопыта, по &f" + (long) result.getMoneyEach()
+                + " &aмонет на " + result.getRewarded().size() + " игрок(ов)"));
         return false;
     }
 
@@ -190,7 +199,7 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan remove <clan>"));
         sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan reload"));
         sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan edititem &7— витрина магазина и наборы"));
-        sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan talisman <ник...> &7— награды за талисман"));
+        sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan talisman <место> <клан> [ники] &7— награды за талисман"));
         sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan export &7— выгрузить топ для сайта"));
     }
 
