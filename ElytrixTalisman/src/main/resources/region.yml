@@ -1,0 +1,6 @@
+radius: 50
+allow-flags:
+  - "pvp"
+  - "potion-splash"
+deny-flags:
+  - "mob-spawning"

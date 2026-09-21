@@ -1,0 +1,10 @@
+rewards:
+  1:
+    exp: 500
+    points: 300
+  2:
+    exp: 300
+    points: 200
+  3:
+    exp: 150
+    points: 100

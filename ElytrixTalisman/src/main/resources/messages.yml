@@ -1,0 +1,64 @@
+prefix: "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7»"
+
+start:
+  - ""
+  - "%prefix% &#F8BEFBТалисман появился!"
+  - "&#F8BEFB&l┃ &fКоординаты: &#F8BEFB%x% %y% %z%"
+  - "&#F8BEFB&l┃ &fЗахватывайте территорию и убивайте врагов"
+  - "&#F8BEFB&l┃ &fТоп 3 клана получат &#F8BEFBкоины &fи &#F8BEFBопыт"
+  - ""
+
+reward-broadcast:
+  - ""
+  - "%prefix% &#F8BEFBТалисман захвачен!"
+  - "&#F8BEFB&l┃ &fМесто: &#F8BEFB#%place%"
+  - "&#F8BEFB&l┃ &fКлан: &#F8BEFB%clan%"
+  - "&#F8BEFB&l┃ &fОчки захвата: &#F8BEFB%capture_points%"
+  - "&#F8BEFB&l┃ &fУбийств: &#F8BEFB%kills% &8| &fСмертей: &#F8BEFB%deaths%"
+  - "&#F8BEFB&l┃ &fНаграда: &a%exp% опыта &8+ &a%points% коинов"
+  - ""
+
+not-enough-online:
+  - ""
+  - "%prefix% &cНедостаточно игроков для запуска ивента"
+  - "&#F8BEFB&l┃ &fОнлайн: &c%online%&8/&#F8BEFB%required%"
+  - "&#F8BEFB&l┃ &fПеренос на: &#F8BEFB%minutes% мин."
+  - ""
+
+no-leader: "&7Отсутствует"
+
+actionbar: "&fОчки захвата: &#F8BEFB%bank%&8/&#F8BEFB%max_bank%"
+actionbar-no-clan: "&cВы не состоите в клане"
+
+hologram:
+  - "&#F8BEFB&lТАЛИСМАН"
+  - "&fДо выпадения лута: &#F8BEFB%points% очков"
+
+loot:
+  menu-title: "&#F8BEFBЛут талисмана"
+  next-page: "&#F8BEFB&lСледующая страница"
+  previous-page: "&#F8BEFB&lПредыдущая страница"
+  page-info: "&fСтраница: &#F8BEFB%current%&8/&#F8BEFB%total%"
+  no-items: "&cПул пуст"
+  drop-broadcast: "%prefix% &#F8BEFBВыпал лут! &fПредметов: &#F8BEFB%amount%"
+
+admin:
+  event-already-running: "%prefix% &cИвент уже запущен!"
+  event-not-running: "%prefix% &cИвент не найден!"
+  event-started: "%prefix% &aИвент был успешно запущен!"
+  event-stopped: "%prefix% &aИвент был успешно завершён!"
+  reloaded: "%prefix% &aКонфигурация перезагружена!"
+  teleported: "%prefix% &aТелепортация к талисману!"
+  no-active-session: "%prefix% &cНет активной сессии!"
+  console-denied: "%prefix% &cТолько для игроков!"
+  items-opened: "%prefix% &aМеню лута открыто"
+  info:
+    - "%prefix% &#F8BEFBИнформация"
+    - "&#F8BEFB&l┃ &fСтатус: &#F8BEFB%status%"
+    - "&#F8BEFB&l┃ &fКоординаты: &#F8BEFB%x% %y% %z%"
+    - "&#F8BEFB&l┃ &fБанк: &#F8BEFB%bank%&8/&#F8BEFB%max_bank%"
+    - "&#F8BEFB&l┃ &fЛидер: &#F8BEFB%leader%"
+    - "&#F8BEFB&l┃ &fКланов участвует: &#F8BEFB%clan_count%"
+
+status-active: "&aАктивен"
+status-inactive: "&cНеактивен"
