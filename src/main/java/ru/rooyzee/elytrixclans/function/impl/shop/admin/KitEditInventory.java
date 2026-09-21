@@ -112,6 +112,11 @@ public class KitEditInventory implements InventoryHolder {
         return out;
     }
 
+    /** Заголовок окна строим сами, поэтому чужие цвета из названия набора убираем. */
+    private static String stripColors(String text) {
+        return text == null ? "" : text.replaceAll("\u00a7[0-9a-fk-orA-FK-ORx]", "");
+    }
+
     /** Страница редактора магазина для возврата, либо -1 если возвращаться некуда. */
     public int getBackPage() {
         return backPage;

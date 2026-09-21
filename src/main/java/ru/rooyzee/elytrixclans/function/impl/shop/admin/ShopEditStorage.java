@@ -60,6 +60,32 @@ public final class ShopEditStorage {
         return false;
     }
 
+    public static File file() {
+        Main main = Main.getInstance();
+        File base = main == null ? new File(".") : main.getDataFolder();
+        return new File(new File(base, "shop"), "shop_item.yml");
+    }
+
+    public static YamlConfiguration loadYaml() {
+        YamlConfiguration config = new YamlConfiguration();
+        File target = file();
+        if (!target.exists()) {
+            Main main = Main.getInstance();
+            if (main != null) {
+                try {
+                    main.saveResource("shop/shop_item.yml", false);
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        try {
+            if (target.exists()) config.load(target);
+        } catch (Exception e) {
+            log("Не удалось прочитать shop_item.yml: " + e.getMessage());
+        }
+        return config;
+    }
+
     /**
      * Одна строка витрины редактора: либо товар (живой предмет), либо набор (иконка).
      */
