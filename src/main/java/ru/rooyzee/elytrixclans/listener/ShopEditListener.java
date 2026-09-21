@@ -1,10 +1,12 @@
 package ru.rooyzee.elytrixclans.listener;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.InventoryHolder;
+import ru.rooyzee.elytrixclans.Main;
 import ru.rooyzee.elytrixclans.function.impl.shop.admin.KitEditInventory;
 import ru.rooyzee.elytrixclans.function.impl.shop.admin.ShopEditInventory;
 import ru.rooyzee.elytrixclans.function.impl.shop.admin.ShopEditStorage;
@@ -33,7 +35,8 @@ public class ShopEditListener implements Listener {
         if (editor.isSaved()) return;
         editor.markSaved();
 
-        boolean ok = ShopEditStorage.save(editor.snapshot());
+        boolean ok = ShopEditStorage.save(editor.snapshot(), editor.getSlotIds(),
+                editor.getPageIds(), editor.getOriginalItems());
         if (!(event.getPlayer() instanceof Player)) return;
         Player player = (Player) event.getPlayer();
         if (ok) {
@@ -59,5 +62,16 @@ public class ShopEditListener implements Listener {
             player.sendMessage(HexUtil.translateHexColorCodes(
                     "&f☁ &7» &cНе удалось сохранить набор, смотрите консоль сервера"));
         }
+
+        // Возвращаем администратора в витрину редактора: набор он открывал оттуда.
+        final int back = editor.getBackPage();
+        if (back < 0) return;
+        Main main = Main.getInstance();
+        if (main == null) return;
+        Bukkit.getScheduler().runTask(main, () -> {
+            if (player.isOnline()) {
+                player.openInventory(new ShopEditInventory(player, back).getInventory());
+            }
+        });
     }
 }

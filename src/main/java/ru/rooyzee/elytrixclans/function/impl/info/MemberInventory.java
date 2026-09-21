@@ -104,15 +104,16 @@ public class MemberInventory implements InventoryHolder {
 
         inventory.setItem(13, sectionLabel());
 
-        roleButton(SLOT_ROOKIE, Material.LEATHER_BOOTS, ClanRoles.ROOKIE, role,
+        // Ступени ролей показываем шлемами: их материал сам читается как «выше — лучше».
+        roleButton(SLOT_ROOKIE, Material.LEATHER_HELMET, ClanRoles.ROOKIE, role,
                 "Только бой за клан, магазин закрыт");
-        roleButton(SLOT_TRAINEE, Material.IRON_INGOT, ClanRoles.TRAINEE, role,
+        roleButton(SLOT_TRAINEE, Material.CHAINMAIL_HELMET, ClanRoles.TRAINEE, role,
                 "Доступ к магазину клана");
-        roleButton(SLOT_VETERAN, Material.GOLD_INGOT, ClanRoles.VETERAN, role,
+        roleButton(SLOT_VETERAN, Material.IRON_HELMET, ClanRoles.VETERAN, role,
                 "Знак заслуг, доступ к магазину");
-        roleButton(SLOT_MODERATOR, Material.DIAMOND, ClanRoles.MODERATOR, role,
-                "Кик из клана и переключение PvP");
-        roleButton(SLOT_LEADER, Material.NETHER_STAR, ClanRoles.LEADER, role,
+        roleButton(SLOT_MODERATOR, Material.DIAMOND_HELMET, ClanRoles.MODERATOR, role,
+                "Кик, PvP и подсветка клана");
+        roleButton(SLOT_LEADER, Material.NETHERITE_HELMET, ClanRoles.LEADER, role,
                 "&cВы сами станете Новичком");
 
         ItemStack kickBtn = button(Material.RED_DYE, "&7« &cКикнуть игрока &7»",

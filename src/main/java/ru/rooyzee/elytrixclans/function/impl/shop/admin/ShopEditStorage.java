@@ -6,8 +6,10 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -16,35 +18,32 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import ru.rooyzee.elytrixclans.Main;
+import ru.rooyzee.elytrixclans.function.impl.shop.ShopFunction;
+import ru.rooyzee.elytrixclans.function.impl.shop.kit.Kit;
+import ru.rooyzee.elytrixclans.function.impl.shop.object.ShopItem;
 import ru.rooyzee.elytrixclans.utils.ShopItemMeta;
 
 /**
- * Хранилище позиций, добавленных через админ-меню /elytrixclan edititem.
+ * Чтение и запись ассортимента для админ-меню /elytrixclan edititem.
  *
- * Как это устроено:
- *  - Меню — это три ряда пустых клеток. Что положил в клетку, то и продаётся.
- *  - При закрытии меню содержимое клеток пишется в shop/shop_item.yml в секцию items.
- *  - Id позиции привязан к номеру клетки: edit_s10, edit_s11 и так далее. Он стабилен,
- *    поэтому цена, уровень и кулдаун, однажды прописанные в конфиге, остаются за клеткой
- *    и не слетают при следующем редактировании.
- *  - Цена НЕ задаётся из меню: её вы пишете руками в shop/prices.yml по тому же id.
- *    Пока цена не указана, позиция стоит DEFAULT_PRICE — так новый предмет не может
- *    случайно оказаться бесплатным.
+ * Меню показывает настоящую витрину магазина, поэтому здесь два направления работы:
+ *  - entries() собирает то же, что видит игрок в /clan shop: товары и наборы в том же
+ *    порядке, но товары — «живыми» предметами, которые можно забрать мышкой.
+ *  - save() принимает содержимое страницы и переписывает секцию items.
  *
- * Позиции, добавленные из меню, помечаются в файле флагом editor: true. Всё остальное
- * в shop_item.yml редактор не трогает — ваши руками прописанные товары и наборы в
- * безопасности.
+ * Позиция привязана к своему id, а не к номеру клетки: предмет можно перекладывать
+ * между слотами, дубликатов от этого не возникает. Цена, уровень и кулдаун живут в
+ * конфиге и переживают редактирование предмета — из меню меняется только сам предмет.
+ *
+ * Новым позициям id выдаётся по материалу (diamond_sword, diamond_sword_2 и так далее),
+ * чтобы файл оставался читаемым при ручной правке.
  */
 public final class ShopEditStorage {
 
-    /** Клетки под предметы: три ряда по семь, ровно как в витрине магазина. */
-    public static final int[] EDIT_SLOTS = {
-            10, 11, 12, 13, 14, 15, 16,
-            19, 20, 21, 22, 23, 24, 25,
-            28, 29, 30, 31, 32, 33, 34
-    };
+    /** Клетки под товар — те же, что в витрине магазина. */
+    public static final int[] EDIT_SLOTS = ShopFunction.CONTENT_SLOTS;
 
-    /** Флаг «позиция создана в меню редактора». */
+    /** Флаг «позиция создана в меню редактора». Оставлен для старых записей edit_sNN. */
     private static final String EDITOR_FLAG = "editor";
     /** Цена новой позиции, пока она не указана в prices.yml. */
     public static final double DEFAULT_PRICE = 100000.0;
@@ -61,121 +60,236 @@ public final class ShopEditStorage {
         return false;
     }
 
-    /** Id позиции для клетки: стабилен, чтобы цена из конфига не терялась. */
-    public static String slotId(int slot) {
-        return "edit_s" + slot;
-    }
+    /**
+     * Одна строка витрины редактора: либо товар (живой предмет), либо набор (иконка).
+     */
+    public static final class Entry {
+        private final String id;
+        private final ItemStack item;
+        private final Kit kit;
 
-    public static File file() {
-        Main main = Main.getInstance();
-        File base = main == null ? new File(".") : main.getDataFolder();
-        return new File(new File(base, "shop"), "shop_item.yml");
-    }
+        private Entry(String id, ItemStack item, Kit kit) {
+            this.id = id;
+            this.item = item;
+            this.kit = kit;
+        }
 
-    public static YamlConfiguration loadYaml() {
-        YamlConfiguration config = new YamlConfiguration();
-        File target = file();
-        if (!target.exists()) {
-            Main main = Main.getInstance();
-            if (main != null) {
-                try {
-                    main.saveResource("shop/shop_item.yml", false);
-                } catch (Exception ignored) {
-                }
-            }
-        }
-        try {
-            if (target.exists()) config.load(target);
-        } catch (Exception e) {
-            log("Не удалось прочитать shop_item.yml: " + e.getMessage());
-        }
-        return config;
+        public String getId() { return id; }
+        public ItemStack getItem() { return item; }
+        public Kit getKit() { return kit; }
+        public boolean isKit() { return kit != null; }
     }
 
     /**
-     * Предметы, которые редактор показывает при открытии: только свои позиции,
-     * разложенные по тем же клеткам, откуда их сохранили.
+     * Ассортимент для редактора: тот же порядок, что в витрине магазина
+     * (уровень, затем товары перед наборами, затем цена).
      */
-    public static Map<Integer, ItemStack> preview(YamlConfiguration config) {
-        Map<Integer, ItemStack> out = new LinkedHashMap<>();
-        ConfigurationSection items = config.getConfigurationSection("items");
-        if (items == null) return out;
-        for (int slot : EDIT_SLOTS) {
-            ConfigurationSection entry = items.getConfigurationSection(slotId(slot));
-            if (entry == null || !entry.getBoolean(EDITOR_FLAG, false)) continue;
-            ItemStack stack = readItem(entry);
-            if (stack != null) out.put(slot, stack);
+    public static List<Entry> entries() {
+        List<Entry> out = new ArrayList<>();
+        Main main = Main.getInstance();
+        if (main == null) return out;
+
+        List<Object> mixed = new ArrayList<>();
+        if (main.getItemsConfiguration() != null) {
+            mixed.addAll(main.getItemsConfiguration().getItems());
+        }
+        if (main.getKitManager() != null) {
+            mixed.addAll(main.getKitManager().getKits());
+        }
+        Comparator<Object> order = Comparator
+                .<Object>comparingInt(ShopEditStorage::entryLevel)
+                .thenComparingInt(entry -> entry instanceof Kit ? 1 : 0)
+                .thenComparingDouble(ShopEditStorage::entryPrice);
+        mixed.sort(order);
+
+        for (Object entry : mixed) {
+            if (entry instanceof Kit) {
+                out.add(new Entry(((Kit) entry).getId(), null, (Kit) entry));
+            } else if (entry instanceof ShopItem) {
+                ShopItem shopItem = (ShopItem) entry;
+                out.add(new Entry(shopItem.getId(), rawItem(shopItem), null));
+            }
         }
         return out;
     }
 
-    private static ItemStack readItem(ConfigurationSection entry) {
-        String materialName = entry.getString("material", "");
-        Material material = materialName.isEmpty()
-                ? null : Material.matchMaterial(materialName.toUpperCase());
-        if (material == null || material == Material.AIR) return null;
-        int amount = Math.max(1, entry.getInt("amount", 1));
-        ItemStack stack = new ItemStack(material, Math.min(material.getMaxStackSize(), amount));
-        ShopItemMeta.apply(stack, ShopItemMeta.of(entry));
+    private static int entryLevel(Object entry) {
+        if (entry instanceof ShopItem) return ((ShopItem) entry).getRequiredLevel();
+        if (entry instanceof Kit) return ((Kit) entry).getRequiredLevel();
+        return Integer.MAX_VALUE;
+    }
+
+    private static double entryPrice(Object entry) {
+        if (entry instanceof ShopItem) return ((ShopItem) entry).getPrice();
+        if (entry instanceof Kit) return ((Kit) entry).getPrice();
+        return 0.0;
+    }
+
+    /**
+     * Предмет для клетки редактора: ровно тот, что получит покупатель, плюс название
+     * позиции. Лор витрины (цена, уровень) намеренно не добавляем — иначе он въелся бы
+     * в предмет при сохранении.
+     */
+    private static ItemStack rawItem(ShopItem shopItem) {
+        Material material = Material.matchMaterial(shopItem.getMaterial().toUpperCase());
+        if (material == null || material == Material.AIR) material = Material.STONE;
+        int amount = Math.max(1, Math.min(material.getMaxStackSize(), shopItem.getAmount()));
+        ItemStack stack = new ItemStack(material, amount);
+        ShopItemMeta.apply(stack, shopItem.getMeta());
+        ItemMeta meta = stack.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(shopItem.getName());
+            if (!shopItem.getLore().isEmpty()) meta.setLore(new ArrayList<>(shopItem.getLore()));
+            stack.setItemMeta(meta);
+        }
         return stack;
     }
 
     /**
-     * Сохраняет содержимое клеток. Цену, уровень и кулдаун уже существующей позиции
-     * не трогаем — они правятся в конфиге и должны пережить редактирование предмета.
+     * Сохраняет страницу редактора.
+     *
+     * @param contents  слот → предмет, как он лежит сейчас
+     * @param slotIds   слот → id позиции, которая была в этом слоте при открытии
+     * @param pageIds   все id, отданные этой странице: чего не осталось — то удалено
+     * @param originals id → исходный предмет: по нему узнаём позицию, если её переложили
      */
-    public static boolean save(Map<Integer, ItemStack> contents) {
+    public static boolean save(Map<Integer, ItemStack> contents,
+                               Map<Integer, String> slotIds,
+                               List<String> pageIds,
+                               Map<String, ItemStack> originals) {
         YamlConfiguration config = loadYaml();
         ConfigurationSection items = config.getConfigurationSection("items");
         if (items == null) items = config.createSection("items");
 
-        for (int slot : EDIT_SLOTS) {
-            String id = slotId(slot);
-            ItemStack item = contents.get(slot);
-            ConfigurationSection existing = items.getConfigurationSection(id);
+        Map<String, ItemStack> survived = new LinkedHashMap<>();
+        List<ItemStack> unmatched = new ArrayList<>();
 
-            if (item == null || item.getType() == Material.AIR) {
-                // Предмет убрали из клетки — убираем и позицию, но только нашу.
-                if (existing != null && existing.getBoolean(EDITOR_FLAG, false)) {
-                    items.set(id, null);
-                }
-                continue;
-            }
-            // Чужую запись с таким же id не перетираем: вдруг её добавили руками.
-            if (existing != null && !existing.getBoolean(EDITOR_FLAG, false)) continue;
-
-            double price = existing != null ? existing.getDouble("price", DEFAULT_PRICE) : DEFAULT_PRICE;
-            int level = existing != null ? existing.getInt("level", DEFAULT_LEVEL) : DEFAULT_LEVEL;
-            int cooldown = existing != null ? existing.getInt("cooldown", 0) : 0;
-
-            ConfigurationSection entry = items.createSection(id);
-            entry.set(EDITOR_FLAG, true);
-            entry.set("name", displayName(item));
-            entry.set("material", item.getType().name());
-            entry.set("amount", item.getAmount());
-            entry.set("price", price);
-            entry.set("level", level);
-            if (cooldown > 0) entry.set("cooldown", cooldown);
-
-            // Зачарования, эффекты зелий, прочность и флаги сохраняем как есть:
-            // что положили в клетку, то покупатель и получит.
-            Map<String, Object> meta = new LinkedHashMap<>();
-            ShopItemMeta.write(meta, item);
-            for (Map.Entry<String, Object> value : meta.entrySet()) {
-                entry.set(value.getKey(), value.getValue());
+        // Шаг 1: клетка не тронута — предмет там же и такой же, каким был.
+        List<Map.Entry<Integer, ItemStack>> rest = new ArrayList<>();
+        for (Map.Entry<Integer, ItemStack> cell : contents.entrySet()) {
+            ItemStack item = cell.getValue();
+            if (item == null || item.getType() == Material.AIR) continue;
+            String id = slotIds.get(cell.getKey());
+            ItemStack original = id == null ? null : originals.get(id);
+            if (id != null && original != null && original.isSimilar(item)
+                    && !survived.containsKey(id)) {
+                survived.put(id, item);
+            } else {
+                rest.add(cell);
             }
         }
+
+        // Шаг 2: предмет переложили в другую клетку — узнаём его по содержимому.
+        // Без этого перекладывание выглядело бы как «удалили одну позицию, создали другую»,
+        // и товар терял бы цену, уровень и кулдаун.
+        for (Map.Entry<Integer, ItemStack> cell : rest) {
+            ItemStack item = cell.getValue();
+            String matched = null;
+            for (String id : pageIds) {
+                if (survived.containsKey(id)) continue;
+                ItemStack original = originals.get(id);
+                if (original != null && original.isSimilar(item)) {
+                    matched = id;
+                    break;
+                }
+            }
+            if (matched != null) survived.put(matched, item);
+            else unmatched.add(item);
+        }
+
+        // Шаг 3: клетка, где лежала позиция, освободилась или занята чужим предметом —
+        // старую позицию удаляем.
+        for (String id : pageIds) {
+            if (!survived.containsKey(id)) items.set(id, null);
+        }
+
+        // Шаг 4: изменённые и новые позиции.
+        for (Map.Entry<String, ItemStack> entry : survived.entrySet()) {
+            writeItem(items, entry.getKey(), entry.getValue(), false);
+        }
+        for (ItemStack item : unmatched) {
+            writeItem(items, freeId(items, item), item, true);
+        }
         return write(config);
+    }
+
+    /**
+     * Пишет позицию в секцию items.
+     *
+     * Цена, уровень и кулдаун существующей позиции сохраняются: они правятся в конфиге,
+     * а не мышкой. У новой позиции берутся значения по умолчанию.
+     */
+    private static void writeItem(ConfigurationSection items, String id, ItemStack item,
+                                  boolean isNew) {
+        ConfigurationSection existing = items.getConfigurationSection(id);
+        double price = existing != null ? existing.getDouble("price", DEFAULT_PRICE) : DEFAULT_PRICE;
+        int level = existing != null ? existing.getInt("level", DEFAULT_LEVEL) : DEFAULT_LEVEL;
+        int cooldown = existing != null ? existing.getInt("cooldown", 0) : 0;
+        List<String> commands = existing != null ? existing.getStringList("commands") : null;
+
+        ConfigurationSection entry = items.createSection(id);
+        entry.set("name", displayName(item));
+        entry.set("material", item.getType().name());
+        entry.set("amount", item.getAmount());
+        entry.set("price", price);
+        entry.set("level", level);
+        if (cooldown > 0) entry.set("cooldown", cooldown);
+        if (commands != null && !commands.isEmpty()) entry.set("commands", commands);
+        if (isNew) entry.set(EDITOR_FLAG, true);
+        else if (existing != null && existing.getBoolean(EDITOR_FLAG, false)) {
+            entry.set(EDITOR_FLAG, true);
+        }
+
+        // Лор предмета переносим как есть: администратор мог подписать товар вручную.
+        ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : null;
+        if (meta != null && meta.hasLore()) {
+            List<String> lore = new ArrayList<>();
+            for (String line : meta.getLore()) {
+                if (line != null) lore.add(line.replace('\u00a7', '&'));
+            }
+            if (!lore.isEmpty()) entry.set("lore", lore);
+        }
+
+        // Зачарования, эффекты зелий, прочность, флаги и цвет кожи — что положили,
+        // то покупатель и получит, включая «невозможные» сочетания уникальных предметов.
+        Map<String, Object> values = new LinkedHashMap<>();
+        ShopItemMeta.write(values, item);
+        for (Map.Entry<String, Object> value : values.entrySet()) {
+            entry.set(value.getKey(), value.getValue());
+        }
+    }
+
+    /** Свободный id для новой позиции: читаемый, по материалу предмета. */
+    private static String freeId(ConfigurationSection items, ItemStack item) {
+        String base = item.getType().name().toLowerCase(Locale.ROOT);
+        if (!items.isSet(base)) return base;
+        for (int i = 2; i < 1000; i++) {
+            String candidate = base + "_" + i;
+            if (!items.isSet(candidate)) return candidate;
+        }
+        return base + "_" + System.currentTimeMillis();
     }
 
     /** Имя для витрины: своё, если предмет переименован, иначе — по материалу. */
     private static String displayName(ItemStack item) {
         ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : null;
         if (meta != null && meta.hasDisplayName()) {
-            return meta.getDisplayName().replace('\u00a7', '&');
+            // Своё название сохраняем целиком, только приводим цвет к фирменному.
+            // Если игрок сам покрасил предмет — его цвета остаются нетронутыми.
+            String own = meta.getDisplayName().replace('\u00a7', '&');
+            return hasColor(own) ? own : "&#F8BEFB" + own;
         }
-        String raw = item.getType().name().toLowerCase().replace('_', ' ');
-        return "&#F8BEFB&l" + Character.toUpperCase(raw.charAt(0)) + raw.substring(1);
+        String raw = item.getType().name().toLowerCase(Locale.ROOT).replace('_', ' ');
+        return "&#F8BEFB" + Character.toUpperCase(raw.charAt(0)) + raw.substring(1);
+    }
+
+    /** Есть ли в строке хоть один код цвета: &a, &#RRGGBB и подобные. */
+    private static boolean hasColor(String text) {
+        if (text == null) return false;
+        for (int i = 0; i < text.length() - 1; i++) {
+            if (text.charAt(i) == '&') return true;
+        }
+        return false;
     }
 
     /**

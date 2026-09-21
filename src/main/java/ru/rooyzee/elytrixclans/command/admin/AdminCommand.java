@@ -12,9 +12,7 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import ru.rooyzee.elytrixclans.Main;
 import ru.rooyzee.elytrixclans.clans.Clan;
-import ru.rooyzee.elytrixclans.function.impl.shop.admin.KitEditInventory;
 import ru.rooyzee.elytrixclans.function.impl.shop.admin.ShopEditInventory;
-import ru.rooyzee.elytrixclans.function.impl.shop.kit.Kit;
 import ru.rooyzee.elytrixclans.utils.ConfigUtil;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
 
@@ -45,7 +43,6 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
         String sub = args[0].toLowerCase(Locale.ROOT);
 
         if (sub.equals("edititem")) return handleEditItem(sender);
-        else if (sub.equals("editkit")) return handleEditKit(sender, args);
         else if (sub.equals("reload")) return handleReload(sender);
         else if (sub.equals("set")) return handleSet(sender, args);
         else if (sub.equals("remove")) return handleRemove(sender, args);
@@ -64,40 +61,6 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
         Player player = (Player) sender;
         player.openInventory(new ShopEditInventory(player).getInventory());
         return false;
-    }
-
-    private boolean handleEditKit(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player)) {
-            sender.sendMessage(HexUtil.translateHexColorCodes(
-                    "&f☁ &7» &cРедактор наборов доступен только из игры"));
-            return false;
-        }
-        if (args.length != 2) {
-            sender.sendMessage(HexUtil.translateHexColorCodes(
-                    "&f☁ &7» &cУкажите набор: &f/elytrixclan editkit <уровень>"));
-            sender.sendMessage(HexUtil.translateHexColorCodes(
-                    "&f☁ &7» &7Доступные: &f" + String.join("&7, &f", kitHints())));
-            return false;
-        }
-        Kit kit = KitEditInventory.resolve(args[1]);
-        if (kit == null) {
-            sender.sendMessage(HexUtil.translateHexColorCodes(
-                    "&f☁ &7» &cНабор не найден. Доступные: &f" + String.join("&7, &f", kitHints())));
-            return false;
-        }
-        Player player = (Player) sender;
-        player.openInventory(new KitEditInventory(player, kit).getInventory());
-        return false;
-    }
-
-    /** Подсказка со списком наборов: показываем уровни, их проще запомнить. */
-    private List<String> kitHints() {
-        List<String> out = new ArrayList<>();
-        for (Kit kit : KitEditInventory.available().values()) {
-            out.add(String.valueOf(kit.getRequiredLevel()));
-        }
-        if (out.isEmpty()) out.add("—");
-        return out;
     }
 
     private boolean handleReload(CommandSender sender) {
@@ -189,17 +152,13 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan addexp <player> <n> player"));
         sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan remove <clan>"));
         sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan reload"));
-        sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan edititem &7— меню добавления товаров"));
-        sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan editkit <уровень> &7— содержимое набора"));
+        sender.sendMessage(HexUtil.translateHexColorCodes("&c/elytrixclan edititem &7— витрина магазина и наборы"));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return filter(Arrays.asList("set", "remove", "reload", "addexp", "edititem", "editkit"), args[0]);
-        }
-        if (args.length == 2 && args[0].equalsIgnoreCase("editkit")) {
-            return filter(kitHints(), args[1]);
+            return filter(Arrays.asList("set", "remove", "reload", "addexp", "edititem"), args[0]);
         }
         if (args.length == 2) {
             List<String> options = new ArrayList<>();

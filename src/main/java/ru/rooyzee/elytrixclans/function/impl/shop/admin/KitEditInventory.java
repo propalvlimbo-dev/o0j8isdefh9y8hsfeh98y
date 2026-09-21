@@ -1,9 +1,7 @@
 package ru.rooyzee.elytrixclans.function.impl.shop.admin;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -12,14 +10,14 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import ru.rooyzee.elytrixclans.Main;
 import ru.rooyzee.elytrixclans.function.impl.shop.kit.Kit;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
 import ru.rooyzee.elytrixclans.utils.MenuUtil;
 
 /**
- * Админ-меню /elytrixclan editkit &lt;уровень&gt; — редактирование содержимого набора.
+ * Редактирование содержимого набора.
  *
+ * Открывается кликом по набору в меню /elytrixclan edititem — отдельной команды нет.
  * Открывается тот же набор, который покупают игроки: что лежит в клетках, то и выдаётся.
  * Складывайте предметы прямо из инвентаря, закройте окно — набор сохранён в shop_item.yml.
  *
@@ -39,11 +37,18 @@ public class KitEditInventory implements InventoryHolder {
     private final Inventory inventory;
     private final UUID owner;
     private final String kitId;
+    /** Страница редактора магазина, с которой пришли: на неё и вернёмся после закрытия. */
+    private final int backPage;
     private boolean saved;
 
     public KitEditInventory(Player player, Kit kit) {
+        this(player, kit, -1);
+    }
+
+    public KitEditInventory(Player player, Kit kit, int backPage) {
         this.owner = player == null ? null : player.getUniqueId();
         this.kitId = kit.getId();
+        this.backPage = backPage;
 
         inventory = Bukkit.createInventory(this, 54, HexUtil.translateHexColorCodes(
                 "&#F8BEFBРедактор: " + stripColors(kit.getDisplayName())));
@@ -107,44 +112,9 @@ public class KitEditInventory implements InventoryHolder {
         return out;
     }
 
-    /** Наборы, доступные для правки: id → набор. Ключ команды — уровень набора. */
-    public static Map<String, Kit> available() {
-        Map<String, Kit> out = new LinkedHashMap<>();
-        Main main = Main.getInstance();
-        if (main == null || main.getKitManager() == null) return out;
-        for (Kit kit : main.getKitManager().getKits()) {
-            if (kit != null) out.put(kit.getId(), kit);
-        }
-        return out;
-    }
-
-    /**
-     * Ищет набор по тому, что ввёл админ: по id (kit4) или просто по уровню (4).
-     */
-    public static Kit resolve(String token) {
-        if (token == null || token.isEmpty()) return null;
-        Main main = Main.getInstance();
-        if (main == null || main.getKitManager() == null) return null;
-
-        Kit direct = main.getKitManager().getKit(token);
-        if (direct != null) return direct;
-
-        try {
-            int level = Integer.parseInt(token.trim());
-            for (Kit kit : main.getKitManager().getKits()) {
-                if (kit.getRequiredLevel() == level) return kit;
-            }
-        } catch (NumberFormatException ignored) {
-        }
-        return null;
-    }
-
-    private static String stripColors(String text) {
-        return text == null ? "" : text.replaceAll("\u00a7[0-9a-fk-orA-FK-ORx]", "");
-    }
-
-    public UUID getOwner() {
-        return owner;
+    /** Страница редактора магазина для возврата, либо -1 если возвращаться некуда. */
+    public int getBackPage() {
+        return backPage;
     }
 
     public String getKitId() {

@@ -71,9 +71,9 @@ messages:
   inviteDeclinedByTarget:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИгрок &#F8BEFB%player% &cотклонил &fприглашение"
   # Кнопки под сообщением о приглашении: нажимаются мышью в чате.
-  inviteButtonsPrefix: "&f☁ &7» "
-  inviteAcceptButton: "&a&l[ПРИНЯТЬ]"
-  inviteDeclineButton: "&c&l[ОТКЛОНИТЬ]"
+  inviteButtonsPrefix: "&d┃ "
+  inviteAcceptButton: "&8[&a✔ &fПринять&8]"
+  inviteDeclineButton: "&8[&c✖ &fОтклонить&8]"
   inviteAcceptHover: "&aВступить в клан"
   inviteDeclineHover: "&cОтказаться от приглашения"
   createdSuccessfully:

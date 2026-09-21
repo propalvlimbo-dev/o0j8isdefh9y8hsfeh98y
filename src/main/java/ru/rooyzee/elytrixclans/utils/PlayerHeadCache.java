@@ -60,12 +60,8 @@ public final class PlayerHeadCache {
 
     private static final int MAX_SKULL_CACHE = 2000;
     private static final int MAX_APPLY_QUEUE = 1024;
-    /** Больше этого времени одна установка владельца в main-потоке стоить не должна. */
-    private static final long SYNC_APPLY_BUDGET_NANOS = 3_000_000L;
     /** Сколько времени за тик разрешено тратить на отложенные головы. */
     private static final long TICK_BUDGET_NANOS = 2_000_000L;
-
-    private static volatile boolean syncOwnerAllowed = true;
 
     private static final long LOOKUP_INTERVAL_MS = 1200L;
     private static final long FAILURE_COOLDOWN_MS = 10 * 60 * 1000L;
@@ -99,9 +95,9 @@ public final class PlayerHeadCache {
             public void onJoin(PlayerJoinEvent event) {
                 Player joined = event.getPlayer();
                 remember(joined);
-                // Готовим голову заранее и вне «часа пик»: к моменту открытия /clan menu
+                // Готовим голову заранее, в фоне: к моменту открытия /clan menu
                 // болванка уже лежит в кэше, и меню собирается на одних клонах.
-                enqueueApply(() -> preparedSkull(joined.getName(), joined));
+                preparedSkull(joined.getName(), joined);
             }
         }, owner);
 
@@ -201,39 +197,33 @@ public final class PlayerHeadCache {
         ItemStack cached = SKULLS.get(key);
         if (cached != null) return cached;
 
-        // Владельца головы ОФФЛАЙН-игрока в главном потоке не ставим никогда.
-        // setOwningPlayer подтягивает GameProfile: на оффлайн-игроке это чтение файла профиля,
-        // а на некоторых сборках — запрос к Mojang. Двадцать четыре таких вызова подряд и
-        // давали фриз на /clan menu. Голова появится через очередь с бюджетом по времени.
-        if (onlinePlayer == null) {
-            OfflinePlayer knownOwner = known(name);
-            if (knownOwner != null) buildAsync(name, knownOwner);
+        // Владельца головы в главном потоке не ставим НИКОГДА — ни оффлайн, ни онлайн.
+        //
+        // Раньше здесь была «оптимизация»: у онлайн-игрока профиль уже загружен, значит
+        // setOwningPlayer дешёвый. На деле дорого не чтение профиля, а его сериализация в
+        // NBT предмета, и она происходит на каждый ПЕРВЫЙ показ головы. Отсюда и симптом:
+        // первое открытие /clan menu лагает, второе нет, а при заходе нового аккаунта лаг
+        // возвращается — просто потому, что его головы ещё нет в кэше.
+        //
+        // Теперь главный поток всегда получает null, меню открывается на пустых головах,
+        // а владельцы приезжают из асинхронной сборки в ближайшие тики.
+        OfflinePlayer owner = onlinePlayer != null
+                ? offlineOf(onlinePlayer)
+                : known(name);
+        if (owner != null) {
+            if (onlinePlayer != null) put(name, owner);
+            buildAsync(name, owner);
+        }
+        return null;
+    }
+
+    /** OfflinePlayer онлайн-игрока без обращения к диску: берём по уже известному UUID. */
+    private static OfflinePlayer offlineOf(Player player) {
+        try {
+            return Bukkit.getOfflinePlayer(player.getUniqueId());
+        } catch (Throwable ignored) {
             return null;
         }
-
-        ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
-        ItemMeta itemMeta = skull.getItemMeta();
-        if (!(itemMeta instanceof SkullMeta)) return null;
-
-        // Профиль онлайн-игрока уже загружен сервером, поэтому здесь это дёшево.
-        long start = System.nanoTime();
-        applyOwner((SkullMeta) itemMeta, onlinePlayer);
-        skull.setItemMeta(itemMeta);
-        long elapsed = System.nanoTime() - start;
-
-        if (elapsed > SYNC_APPLY_BUDGET_NANOS && syncOwnerAllowed) {
-            syncOwnerAllowed = false;
-            JavaPlugin owner0 = plugin;
-            if (owner0 != null) {
-                owner0.getLogger().warning("Установка владельца головы заняла "
-                        + (elapsed / 1_000_000L) + " мс. Меню кланов переведены на отложенное "
-                        + "заполнение голов, чтобы не задерживать главный поток.");
-            }
-        }
-
-        put(name, onlinePlayer);
-        cacheSkull(key, skull);
-        return skull;
     }
 
     /**
@@ -308,6 +298,7 @@ public final class PlayerHeadCache {
         if (inventory == null) return;
         // preparedSkull кэширует результат, поэтому второй вызов внутри createHead бесплатный.
         boolean ready = preparedSkull(name, onlinePlayer) != null;
+        // Голову онлайн-игрока тоже доклеиваем через очередь: главный поток остаётся чистым.
         inventory.setItem(slot, createHead(name, onlinePlayer, displayName, lore));
         if (!ready) {
             updateSlotLater(inventory, slot, name);

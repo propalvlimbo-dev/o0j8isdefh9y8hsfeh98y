@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.configuration.serialization.SerializableAs;
@@ -37,6 +36,12 @@ public class Roles implements ConfigurationSerializable {
         return name == null ? "Участник" : name;
     }
 
+    /** Есть ли у роли право. Null-безопасно: у роли без списка прав нет никаких. */
+    public boolean hasPermission(Permissions permission) {
+        if (permission == null) return false;
+        return getPermissions().contains(permission);
+    }
+
     public void setName(String name) {
         this.name = name;
     }
@@ -64,26 +69,9 @@ public class Roles implements ConfigurationSerializable {
         // Права берём из описания роли, а не из файла: набор прав у роли задан в коде,
         // поэтому старые сохранения («Участник» с произвольным списком) чинятся сами.
         String normalized = ClanRoles.normalize(name);
-        if (!normalized.equals(name.trim())) {
-            return ClanRoles.create(normalized);
-        }
-        List<String> permissionsNames = null;
-        Object permissionsObj = args.get("permissions");
-        if (permissionsObj instanceof List) {
-            permissionsNames = new ArrayList<>();
-            for (Object entry : (List<?>) permissionsObj) {
-                if (entry != null) permissionsNames.add(String.valueOf(entry));
-            }
-        }
-        List<Permissions> permissions = new ArrayList<>();
-        if (permissionsNames != null) {
-            for (String permName : permissionsNames) {
-                try {
-                    permissions.add(Permissions.valueOf(permName.toUpperCase(Locale.ROOT)));
-                } catch (IllegalArgumentException ignored) {
-                }
-            }
-        }
-        return new Roles(name, permissions.toArray(new Permissions[0]));
+        // Набор прав роли всегда берётся из ClanRoles, даже если название уже актуально.
+        // Иначе кланы, сохранённые до расширения прав роли (например, Модератор получил
+        // GLOW), навсегда остались бы со старым списком из файла.
+        return ClanRoles.create(normalized);
     }
 }

@@ -16,8 +16,10 @@ import ru.rooyzee.elytrixclans.function.impl.info.MemberInventory;
 import ru.rooyzee.elytrixclans.function.impl.shop.ShopFunction;
 import ru.rooyzee.elytrixclans.function.impl.shop.admin.KitEditInventory;
 import ru.rooyzee.elytrixclans.function.impl.shop.admin.ShopEditInventory;
+import ru.rooyzee.elytrixclans.function.impl.shop.kit.Kit;
 import ru.rooyzee.elytrixclans.function.impl.shop.admin.ShopEditStorage;
 import ru.rooyzee.elytrixclans.function.impl.shop.holder.kits.KitPreviewInventory;
+import ru.rooyzee.elytrixclans.utils.HexUtil;
 import ru.rooyzee.elytrixclans.utils.NBTUtil;
 
 public class InventoryClickListener implements Listener {
@@ -32,7 +34,7 @@ public class InventoryClickListener implements Listener {
         // Редактор магазина — единственное меню, где предметы можно свободно двигать:
         // в этом весь его смысл. Защищены только рамка и служебные кнопки.
         if (holder instanceof ShopEditInventory) {
-            handleEditorClick(event, topInv, player, false);
+            handleShopEditorClick(event, topInv, player, (ShopEditInventory) holder);
             return;
         }
         if (holder instanceof KitEditInventory) {
@@ -83,6 +85,61 @@ public class InventoryClickListener implements Listener {
      * Клик в редакторе. Разрешаем всё, что касается клеток под товар, и запрещаем
      * трогать рамку, информационный предмет и кнопку закрытия.
      */
+    /**
+     * Клик в редакторе магазина. Помимо обычной работы с клетками здесь два особых
+     * предмета: кнопки страниц и иконки наборов. Забрать их нельзя — по ним переходят.
+     */
+    private void handleShopEditorClick(InventoryClickEvent event, Inventory topInv, Player player,
+                                       ShopEditInventory editor) {
+        ItemStack clicked = event.getCurrentItem();
+
+        if (event.getClickedInventory() == topInv && clicked != null) {
+            // Набор: открываем редактор его содержимого, страницу запоминаем для возврата.
+            if (NBTUtil.hasItemNBT(clicked, ShopEditInventory.NBT_KIT)) {
+                event.setCancelled(true);
+                Kit kit = ShopEditInventory.kitOf(clicked);
+                if (kit == null) return;
+                // Сначала сохраняем текущую страницу: иначе правки пропадут при переходе.
+                saveShopEditor(editor, player);
+                player.openInventory(
+                        new KitEditInventory(player, kit, editor.getPage()).getInventory());
+                return;
+            }
+            // Смена страницы: тоже сохраняем то, что успели наредактировать.
+            if (NBTUtil.hasItemNBT(clicked, ShopEditInventory.NBT_PAGE)) {
+                event.setCancelled(true);
+                int target = parsePage(NBTUtil.getNBTvalue(clicked, ShopEditInventory.NBT_PAGE),
+                        editor.getPage());
+                saveShopEditor(editor, player);
+                player.openInventory(new ShopEditInventory(player, target).getInventory());
+                return;
+            }
+        }
+
+        handleEditorClick(event, topInv, player, false);
+    }
+
+    /** Сохранение страницы редактора перед переходом: повторно писать файл не будем. */
+    private void saveShopEditor(ShopEditInventory editor, Player player) {
+        if (editor.isSaved()) return;
+        editor.markSaved();
+        boolean ok = ShopEditStorage.save(editor.snapshot(), editor.getSlotIds(),
+                editor.getPageIds(), editor.getOriginalItems());
+        if (!ok) {
+            player.sendMessage(HexUtil.translateHexColorCodes(
+                    "&f☁ &7» &cНе удалось сохранить магазин, смотрите консоль сервера"));
+        }
+    }
+
+    private static int parsePage(String raw, int def) {
+        if (raw == null) return def;
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException e) {
+            return def;
+        }
+    }
+
     private void handleEditorClick(InventoryClickEvent event, Inventory topInv, Player player,
                                    boolean kitEditor) {
         if (event.getCurrentItem() != null
@@ -98,7 +155,7 @@ public class InventoryClickListener implements Listener {
             event.setCancelled(true);
             ItemStack moved = event.getCurrentItem();
             if (moved == null || moved.getType() == Material.AIR) return;
-            for (int slot : (kitEditor ? KitEditInventory.EDIT_SLOTS : ShopEditStorage.EDIT_SLOTS)) {
+            for (int slot : (kitEditor ? KitEditInventory.EDIT_SLOTS : ShopEditInventory.EDIT_SLOTS)) {
                 ItemStack existing = topInv.getItem(slot);
                 if (existing != null && existing.getType() != Material.AIR) continue;
                 topInv.setItem(slot, moved.clone());
@@ -110,7 +167,7 @@ public class InventoryClickListener implements Listener {
 
         boolean editable = kitEditor
                 ? KitEditInventory.isEditableSlot(event.getSlot())
-                : ShopEditStorage.isEditableSlot(event.getSlot());
+                : ShopEditInventory.isEditableSlot(event.getSlot());
         if (event.getSlot() < 0 || !editable) {
             event.setCancelled(true);
             return;

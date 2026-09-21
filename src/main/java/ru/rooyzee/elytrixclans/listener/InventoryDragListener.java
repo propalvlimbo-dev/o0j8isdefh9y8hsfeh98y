@@ -12,7 +12,6 @@ import ru.rooyzee.elytrixclans.function.impl.info.MemberInventory;
 import ru.rooyzee.elytrixclans.function.impl.shop.ShopFunction;
 import ru.rooyzee.elytrixclans.function.impl.shop.admin.KitEditInventory;
 import ru.rooyzee.elytrixclans.function.impl.shop.admin.ShopEditInventory;
-import ru.rooyzee.elytrixclans.function.impl.shop.admin.ShopEditStorage;
 import ru.rooyzee.elytrixclans.function.impl.shop.holder.kits.KitPreviewInventory;
 
 public class InventoryDragListener implements Listener {
@@ -31,7 +30,7 @@ public class InventoryDragListener implements Listener {
                 if (slot >= editorSize) continue;
                 boolean editable = kitEditor
                         ? KitEditInventory.isEditableSlot(slot)
-                        : ShopEditStorage.isEditableSlot(slot);
+                        : ShopEditInventory.isEditableSlot(slot);
                 if (!editable) {
                     event.setCancelled(true);
                     return;

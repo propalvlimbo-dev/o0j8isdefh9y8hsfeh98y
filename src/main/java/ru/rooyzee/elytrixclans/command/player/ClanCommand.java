@@ -83,7 +83,7 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
             case "invite": return handleInvite(player, clan, member, args);
             case "kick": return handleKick(player, clan, member, args);
             case "pvp": return handlePvp(player, clan, member);
-            case "glow": player.openInventory(new GlowFunction().getInventory()); return false;
+            case "glow": return handleGlow(player, member);
             case "sethome": return handleSetHome(player, clan, member);
             case "delhome": return handleDelHome(player, clan, member);
             case "shop": player.openInventory(new ShopFunction(player).getInventory()); return false;
@@ -288,13 +288,26 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
         if (msg.length() > CHAT_MAX_LENGTH) msg = msg.substring(0, CHAT_MAX_LENGTH);
 
         String line = HexUtil.translateHexColorCodes(
-                "&#F8BEFB✦ &f" + player.getName() + " &7» &f") + msg;
+                "&f☁ &#F8BEFB" + player.getName() + " &7» &f") + msg;
         for (ClanMember m : clan.getMemberList()) {
             Player recipient = m.getPlayer();
             if (recipient != null && recipient.isOnline()) {
                 recipient.sendMessage(line);
             }
         }
+        return false;
+    }
+
+    /**
+     * Подсветка клана. Право GLOW есть у Лидера и Модератора, поэтому проверяем
+     * именно его, а не название роли: так набор прав остаётся в одном месте (ClanRoles).
+     */
+    private boolean handleGlow(Player player, ClanMember member) {
+        if (member == null || !member.getRole().hasPermission(Permissions.GLOW)) {
+            ConfigUtil.sendMessage(player, "messages.noPermission", null);
+            return false;
+        }
+        player.openInventory(new GlowFunction().getInventory());
         return false;
     }
 
