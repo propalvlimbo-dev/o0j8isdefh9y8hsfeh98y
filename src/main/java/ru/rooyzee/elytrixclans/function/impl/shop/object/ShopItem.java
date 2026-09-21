@@ -2,6 +2,7 @@ package ru.rooyzee.elytrixclans.function.impl.shop.object;
 
 import java.util.Collections;
 import java.util.List;
+import org.bukkit.inventory.ItemStack;
 import ru.rooyzee.elytrixclans.utils.ShopItemMeta;
 
 /**
@@ -15,6 +16,9 @@ import ru.rooyzee.elytrixclans.utils.ShopItemMeta;
  *  - выдачей чужого плагина через консольные команды (commands), тогда material служит иконкой.
  */
 public class ShopItem {
+
+    /** Слепок предмета целиком (со всеми NBT), либо null для обычных позиций. */
+    private ItemStack snapshot;
 
     private final String id;
     private final String name;
@@ -58,6 +62,18 @@ public class ShopItem {
 
     /** Свойства предмета из конфига: зачарования, эффекты, прочность, флаги. */
     public ShopItemMeta.Reader getMeta() { return meta; }
+
+    /**
+     * Полный слепок предмета, если он сохранён в конфиге.
+     *
+     * Используется вместо сборки по ключам: только так переживают выдачу предметы
+     * сторонних плагинов, которые держат данные в собственных NBT-тегах.
+     */
+    public ItemStack getSnapshot() { return snapshot == null ? null : snapshot.clone(); }
+
+    public void setSnapshot(ItemStack snapshot) {
+        this.snapshot = snapshot == null ? null : snapshot.clone();
+    }
 
     /** Товар выдаётся командами, а не предметом из инвентаря витрины. */
     public boolean isCommandItem() { return !commands.isEmpty(); }

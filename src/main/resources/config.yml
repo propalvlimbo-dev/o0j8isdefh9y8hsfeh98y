@@ -27,7 +27,8 @@ shop:
 clan_name_min_length: 3
 clan_name_max_length: 6
 clan_create_price: 50000
-inviteExit: 15
+# Сколько секунд действует приглашение в клан.
+inviteExit: 60
 
 blockedNames:
   - "25565"
@@ -65,15 +66,14 @@ messages:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cНеправильное использование команды"
   targetInvited:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fПриглашение в клан &#F8BEFB%clan% &fот &#F8BEFB%player%"
-    - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fВведите &#F8BEFB/clan accept &fдля принятия"
   inviteDeclined:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &cВы отклонили приглашение"
   inviteDeclinedByTarget:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &fИгрок &#F8BEFB%player% &cотклонил &fприглашение"
   # Кнопки под сообщением о приглашении: нажимаются мышью в чате.
-  inviteButtonsPrefix: "&d┃ "
-  inviteAcceptButton: "&8[&a✔ &fПринять&8]"
-  inviteDeclineButton: "&8[&c✖ &fОтклонить&8]"
+  inviteButtonsPrefix: "&f☁ &7» "
+  inviteAcceptButton: "&a✔ Принять"
+  inviteDeclineButton: "&c✖ Отклонить"
   inviteAcceptHover: "&aВступить в клан"
   inviteDeclineHover: "&cОтказаться от приглашения"
   createdSuccessfully:

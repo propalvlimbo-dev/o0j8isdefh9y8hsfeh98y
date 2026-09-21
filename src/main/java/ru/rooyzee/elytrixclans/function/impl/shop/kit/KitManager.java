@@ -18,6 +18,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import ru.rooyzee.elytrixclans.Main;
+import ru.rooyzee.elytrixclans.function.impl.shop.admin.ShopEditStorage;
 import ru.rooyzee.elytrixclans.function.impl.shop.config.PriceConfiguration;
 import ru.rooyzee.elytrixclans.function.impl.shop.util.BuyManager;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
@@ -80,6 +81,20 @@ public class KitManager {
 
     private ItemStack readItem(Map<?, ?> map) {
         try {
+            // Полный слепок предмета в приоритете: так переживают сохранение предметы
+            // сторонних плагинов со своими NBT-тегами.
+            Object snapshot = map.get(ShopEditStorage.SNAPSHOT_KEY);
+            if (snapshot instanceof ItemStack) {
+                ItemStack copy = ((ItemStack) snapshot).clone();
+                if (copy.getType() != Material.AIR) {
+                    Object rawAmount = map.get("amount");
+                    if (rawAmount instanceof Number) {
+                        copy.setAmount(Math.max(1, ((Number) rawAmount).intValue()));
+                    }
+                    return copy;
+                }
+            }
+
             Object rawMaterial = map.get("material");
             if (rawMaterial == null) return null;
             Material material = Material.matchMaterial(String.valueOf(rawMaterial).toUpperCase(Locale.ROOT));

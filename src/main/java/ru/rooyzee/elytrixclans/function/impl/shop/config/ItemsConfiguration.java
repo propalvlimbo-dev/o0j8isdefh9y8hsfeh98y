@@ -13,6 +13,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import ru.rooyzee.elytrixclans.Main;
+import ru.rooyzee.elytrixclans.function.impl.shop.admin.ShopEditStorage;
 import ru.rooyzee.elytrixclans.function.impl.shop.object.ShopItem;
 import ru.rooyzee.elytrixclans.utils.HexUtil;
 import ru.rooyzee.elytrixclans.utils.NBTUtil;
@@ -103,8 +104,12 @@ public class ItemsConfiguration {
         }
         List<String> commands = entry.getStringList("commands");
         int cooldown = entry.getInt("cooldown", 0);
-        return new ShopItem(key, name, material.toUpperCase(), lore, price, amount, level,
+        ShopItem shopItem = new ShopItem(key, name, material.toUpperCase(), lore, price, amount, level,
                 commands, cooldown, ShopItemMeta.of(entry));
+        // Полный слепок предмета, если позицию сохраняли через /elytrixclan edititem.
+        Object snapshot = entry.get(ShopEditStorage.SNAPSHOT_KEY);
+        if (snapshot instanceof ItemStack) shopItem.setSnapshot((ItemStack) snapshot);
+        return shopItem;
     }
 
     /** Весь ассортимент в порядке витрины. */
@@ -125,6 +130,14 @@ public class ItemsConfiguration {
      * Для командных позиций это только иконка: сама выдача идёт консольными командами.
      */
     public static ItemStack buildRawItem(ShopItem shopItem) {
+        // Слепок в приоритете: он содержит предмет целиком, включая NBT сторонних плагинов,
+        // которые сборкой по ключам не восстановить.
+        ItemStack snapshot = shopItem.getSnapshot();
+        if (snapshot != null && snapshot.getType() != Material.AIR) {
+            snapshot.setAmount(Math.max(1,
+                    Math.min(snapshot.getType().getMaxStackSize(), shopItem.getAmount())));
+            return snapshot;
+        }
         Material material = Material.matchMaterial(shopItem.getMaterial());
         if (material == null) material = Material.STONE;
         ItemStack stack = new ItemStack(material, Math.min(material.getMaxStackSize(), shopItem.getAmount()));

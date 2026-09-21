@@ -19,8 +19,10 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import ru.rooyzee.elytrixclans.Main;
 import ru.rooyzee.elytrixclans.function.impl.shop.ShopFunction;
+import ru.rooyzee.elytrixclans.function.impl.shop.config.ItemsConfiguration;
 import ru.rooyzee.elytrixclans.function.impl.shop.kit.Kit;
 import ru.rooyzee.elytrixclans.function.impl.shop.object.ShopItem;
+import ru.rooyzee.elytrixclans.utils.MaterialNameUtil;
 import ru.rooyzee.elytrixclans.utils.ShopItemMeta;
 
 /**
@@ -45,6 +47,12 @@ public final class ShopEditStorage {
 
     /** Флаг «позиция создана в меню редактора». Оставлен для старых записей edit_sNN. */
     private static final String EDITOR_FLAG = "editor";
+    /**
+     * Ключ полного слепка предмета. Bukkit сериализует ItemStack со всеми NBT-тегами,
+     * поэтому уникальные предметы сторонних плагинов переживают сохранение без потерь.
+     */
+    public static final String SNAPSHOT_KEY = "item-snapshot";
+
     /** Цена новой позиции, пока она не указана в prices.yml. */
     public static final double DEFAULT_PRICE = 100000.0;
     /** Уровень клана для новой позиции. */
@@ -157,15 +165,21 @@ public final class ShopEditStorage {
      * в предмет при сохранении.
      */
     private static ItemStack rawItem(ShopItem shopItem) {
-        Material material = Material.matchMaterial(shopItem.getMaterial().toUpperCase());
-        if (material == null || material == Material.AIR) material = Material.STONE;
-        int amount = Math.max(1, Math.min(material.getMaxStackSize(), shopItem.getAmount()));
-        ItemStack stack = new ItemStack(material, amount);
-        ShopItemMeta.apply(stack, shopItem.getMeta());
+        // Тот же предмет, что получит покупатель: у позиций со слепком это исходный
+        // предмет со всеми чужими NBT, иначе — сборка по ключам конфига.
+        ItemStack stack = ItemsConfiguration.buildRawItem(shopItem);
+        if (stack.getType() == Material.AIR) stack = new ItemStack(Material.STONE);
+        stack.setAmount(Math.max(1,
+                Math.min(stack.getType().getMaxStackSize(), shopItem.getAmount())));
+
         ItemMeta meta = stack.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(shopItem.getName());
-            if (!shopItem.getLore().isEmpty()) meta.setLore(new ArrayList<>(shopItem.getLore()));
+            // Имя позиции ставим только если у самого предмета его нет: у уникального
+            // предмета своё название — часть предмета, затирать его нельзя.
+            if (!meta.hasDisplayName()) meta.setDisplayName(shopItem.getName());
+            if (!meta.hasLore() && !shopItem.getLore().isEmpty()) {
+                meta.setLore(new ArrayList<>(shopItem.getLore()));
+            }
             stack.setItemMeta(meta);
         }
         return stack;
@@ -283,6 +297,14 @@ public final class ShopEditStorage {
         for (Map.Entry<String, Object> value : values.entrySet()) {
             entry.set(value.getKey(), value.getValue());
         }
+
+        // И сверх того — полный слепок предмета через штатную сериализацию Bukkit.
+        // Разобранные по ключам свойства покрывают только то, что плагин знает: ванильные
+        // зачарования, зелья, прочность. Предмет из стороннего плагина (MMOItems, Oraxen,
+        // ItemsAdder, ExecutableItems) держит свои данные в собственных NBT-тегах, и по
+        // ключам они не восстановятся. Слепок сохраняет предмет ЦЕЛИКОМ, вместе с чужими
+        // тегами, а при выдаче используется в первую очередь.
+        entry.set(SNAPSHOT_KEY, item.clone());
     }
 
     /** Свободный id для новой позиции: читаемый, по материалу предмета. */
@@ -305,8 +327,8 @@ public final class ShopEditStorage {
             String own = meta.getDisplayName().replace('\u00a7', '&');
             return hasColor(own) ? own : "&#F8BEFB" + own;
         }
-        String raw = item.getType().name().toLowerCase(Locale.ROOT).replace('_', ' ');
-        return "&#F8BEFB" + Character.toUpperCase(raw.charAt(0)) + raw.substring(1);
+        // Название по материалу — по-русски: "Diamond sword" в витрине смотрелся чужеродно.
+        return "&#F8BEFB" + MaterialNameUtil.of(item.getType());
     }
 
     /** Есть ли в строке хоть один код цвета: &a, &#RRGGBB и подобные. */
@@ -344,6 +366,8 @@ public final class ShopEditStorage {
             }
             // Зачарования, зелья, прочность и флаги — тем же форматом, что читает KitManager.
             ShopItemMeta.write(values, item);
+            // Полный слепок: предметы сторонних плагинов сохраняются целиком.
+            values.put(SNAPSHOT_KEY, item.clone());
             list.add(values);
         }
         entry.set("items", list);

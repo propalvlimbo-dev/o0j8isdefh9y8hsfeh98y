@@ -102,8 +102,6 @@ public class MemberInventory implements InventoryHolder {
 
         if (!leader || targetIsOwner || self) return;
 
-        inventory.setItem(13, sectionLabel());
-
         // Ступени ролей показываем шлемами: их материал сам читается как «выше — лучше».
         roleButton(SLOT_ROOKIE, Material.LEATHER_HELMET, ClanRoles.ROOKIE, role,
                 "Только бой за клан, магазин закрыт");
@@ -120,22 +118,6 @@ public class MemberInventory implements InventoryHolder {
                 "Удалить из клана: &cБезвозвратно", "Нажмите для кика", null);
         NBTUtil.addItemNBT(kickBtn, NBT_MEMBER_ACTION, "kick");
         inventory.setItem(SLOT_KICK, kickBtn);
-    }
-
-    private ItemStack sectionLabel() {
-        ItemStack item = new ItemStack(Material.BOOK);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(HexUtil.translateHexColorCodes("&7« &#F8BEFBВыдать роль &7»"));
-            meta.setLore(Arrays.asList(
-                    HexUtil.translateHexColorCodes("&#F8BEFB&l┃ "),
-                    HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fНовичок, Стажёр и Опытный"),
-                    HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fучастник получает и сам — за опыт."),
-                    HexUtil.translateHexColorCodes("&#F8BEFB&l┃ &fМодератора и Лидера выдаёте только вы."),
-                    HexUtil.translateHexColorCodes("&#F8BEFB&l┃ ")));
-            item.setItemMeta(meta);
-        }
-        return item;
     }
 
     /** Кнопка выдачи роли; текущая роль подсвечивается зачарованием и пометкой. */
