@@ -47,6 +47,14 @@ nameAllowedChars: "abcdefghijklmnopqrstuvwxyz1234567890_йцукенгшщзхъ
 
 noClanPlaceholder: "&#F8BEFBБез клана"
 
+# Вид тега клана в плейсхолдере %elytrixclans_clan_tag% — им удобно выводить клан
+# над головой игрока (неймтег в плагине TAB).
+#   %clan%  — название клана
+#   %color% — цвет по уровню клана из levels.yml
+# Пробел в конце нужен, чтобы тег не слипался с ником. У игрока БЕЗ клана
+# плейсхолдер отдаёт пустую строку, поэтому лишнего пробела в неймтеге не будет.
+clanTagFormat: "&7[%color%%clan%&7] "
+
 messages:
   configReload:
     - "&f☁ &#F8BEFBᴇ&#F6BEFBʟ&#F3BEFBʏ&#F1BFFBᴛ&#EEBFFBʀ&#ECBFFBɪ&#E9BFFBx &7» &aКонфиг перезагружен"

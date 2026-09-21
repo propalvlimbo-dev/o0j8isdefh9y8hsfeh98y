@@ -55,7 +55,13 @@ public class ClanPlaceholder extends PlaceholderExpansion {
     public String onPlaceholderRequest(Player player, String identifier) {
         if (identifier == null) return "";
         Main main = Main.getInstance();
-        if (main == null || main.getClanManager() == null) return EMPTY;
+        if (main == null || main.getClanManager() == null) {
+            // Плейсхолдеры для неймтега обязаны отдавать ПУСТУЮ строку, а не прочерк:
+            // иначе у игрока без клана (или пока плагин не прогрузился) над головой
+            // повиснет «—» вместо чистого «донат + ник».
+            if (isNameTagPlaceholder(identifier)) return "";
+            return EMPTY;
+        }
 
         // Топ по поинтам убран вместе с самими поинтами: осталось только количество опыта.
         if (identifier.startsWith("clan_top_exp_") || identifier.startsWith("clan_top_name_")) {
@@ -82,13 +88,20 @@ public class ClanPlaceholder extends PlaceholderExpansion {
             return "";
         }
 
-        // Готовый тег клана для строки над головой: [Клан] в цвете уровня.
-        // Без клана возвращается пустая строка, поэтому в неймтеге не остаётся дырки.
+        // Готовый тег клана для строки над головой.
+        //
+        // Ключевое свойство: БЕЗ клана возвращается пустая строка (не "Без клана",
+        // не пробел). Поэтому в неймтеге у игрока без клана не остаётся ни лишнего
+        // пробела, ни скобок — там просто донат и ник.
         if (identifier.equalsIgnoreCase("clan_tag")) {
             if (clan == null) return "";
             String color = LevelUtil.getClanLevel(clan.getExp()).getColor();
-            return HexUtil.translateHexColorCodes(
-                    "&7[" + color + clan.getName() + "&7] ");
+            // Формат настраивается в config.yml: clanTagFormat.
+            String format = main.getConfig().getString("clanTagFormat", "&7[%color%%clan%&7] ");
+            if (format == null || format.isEmpty()) return "";
+            return HexUtil.translateHexColorCodes(format
+                    .replace("%color%", color)
+                    .replace("%clan%", clan.getName()));
         }
 
         // Голое название без цветов и скобок: если оформление задаётся в самом TAB.
@@ -116,6 +129,15 @@ public class ClanPlaceholder extends PlaceholderExpansion {
         }
 
         return identifier;
+    }
+
+    /** Плейсхолдеры, у которых «нет данных» должно означать пустую строку. */
+    private static boolean isNameTagPlaceholder(String identifier) {
+        return identifier.equalsIgnoreCase("clan_tag")
+                || identifier.equalsIgnoreCase("clan_name")
+                || identifier.equalsIgnoreCase("clan_name_plain")
+                || identifier.equalsIgnoreCase("clan_level")
+                || identifier.equalsIgnoreCase("clan_role");
     }
 
     private static int parsePlace(String identifier) {
