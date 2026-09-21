@@ -1,0 +1,15 @@
+name: ElytrixTalisman
+version: '1.0'
+main: ru.rooyzee.elytrixtalisman.Main
+api-version: '1.16'
+depend:
+  - FastAsyncWorldEdit
+  - WorldGuard
+  - ElytrixClans
+  - Essentials
+commands:
+  elytrixtalisman:
+    permission: elytrixtalisman.admin
+permissions:
+  elytrixtalisman.admin:
+    default: op

@@ -1,0 +1,4 @@
+bossbar:
+  color: "BLUE"
+  style: "SOLID"
+  title: "&#F8BEFBТалисман: &f%x% %z% &8| &#F8BEFBЛидер: &f%leader% &8| &#F8BEFBОчки: &f%bank%&8/&f%max_bank%"
