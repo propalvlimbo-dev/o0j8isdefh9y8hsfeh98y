@@ -47,33 +47,49 @@ clanTagFormat: "&7[%color%%clan%&7] "
 Секция у вас уже включена, ничего добавлять не нужно. Главное, чтобы
 `scoreboard-teams.enabled` оставался `true` — именно он рисует неймтеги.
 
-### 2.2. `groups.yml` (или `users.yml`) — вот здесь основная правка
+### 2.2. `groups.yml` — основная правка
 
-Откройте `plugins/TAB/groups.yml`. Скорее всего, там сейчас примерно так:
+Это ваш текущий файл. Титул над головой даёт строка `tagsuffix`:
 
 ```yaml
+default:
+  tagsuffix: '&r%luckperms_suffix%'   # <-- титул над головой
 _DEFAULT_:
-  tabprefix: "%luckperms_prefix%"
-  tabsuffix: "%luckperms_suffix%"
-  tagprefix: "%luckperms_prefix%"
-  tagsuffix: "%luckperms_suffix%"   # <-- из-за этой строки титул над головой
+  tagsuffix: '%luckperms_suffix%'     # <-- и здесь тоже
 ```
 
-Приведите к такому виду:
+Замените содержимое `plugins/TAB/groups.yml` на это (готовый файл лежит
+рядом — `groups_TAB_готовый.yml`):
 
 ```yaml
-_DEFAULT_:
+per-world: []
+default:
   # Таб: донат + ник + титул (как было)
-  tabprefix: "%luckperms_prefix%"
-  tabsuffix: "%luckperms_suffix%"
-
+  tabprefix: '%luckperms_prefix%&7'
+  tabsuffix: '%luckperms_suffix%'
   # Над головой: донат + клан + ник, титула нет
-  tagprefix: "%luckperms_prefix%%elytrixclans_clan_tag%"
-  tagsuffix: ""
+  tagprefix: '%luckperms_prefix%%elytrixclans_clan_tag%&7'
+  tagsuffix: ''
+_DEFAULT_:
+  tabprefix: '%luckperms_prefix%&7'
+  tabsuffix: '%luckperms_suffix%'
+  tagprefix: '%luckperms_prefix%%elytrixclans_clan_tag%&7'
+  tagsuffix: ''
 ```
 
-Если у вас несколько групп (owner, admin, default и т.д.) — правку нужно
-повторить в каждой, где задан `tagsuffix`.
+Что изменилось ровно в двух местах каждой группы:
+
+- `tagsuffix` стал пустым — титул над головой пропал;
+- в `tagprefix` добавлен `%elytrixclans_clan_tag%` — появился клан.
+
+`tabprefix` и `tabsuffix` не тронуты, так что таб выглядит как раньше.
+
+Про `&7` в конце `tagprefix`: он красит ник в серый и должен остаться
+последним, уже после тега клана — иначе цвет клана «потечёт» на ник.
+
+Блоки `default` и `_DEFAULT_` — это разные вещи: `_DEFAULT_` применяется ко
+всем группам, у которых нет своей секции, а `default` — к конкретной группе
+с именем «default». Правим оба, как в примере.
 
 ### 2.3. Обновление тега при смене клана
 

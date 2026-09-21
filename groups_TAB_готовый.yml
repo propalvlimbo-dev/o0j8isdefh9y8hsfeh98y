@@ -1,0 +1,13 @@
+per-world: []
+default:
+  # Таб: донат + ник + титул (как было)
+  tabprefix: '%luckperms_prefix%&7'
+  tabsuffix: '%luckperms_suffix%'
+  # Над головой: донат + клан + ник, титула нет
+  tagprefix: '%luckperms_prefix%%elytrixclans_clan_tag%&7'
+  tagsuffix: ''
+_DEFAULT_:
+  tabprefix: '%luckperms_prefix%&7'
+  tabsuffix: '%luckperms_suffix%'
+  tagprefix: '%luckperms_prefix%%elytrixclans_clan_tag%&7'
+  tagsuffix: ''
