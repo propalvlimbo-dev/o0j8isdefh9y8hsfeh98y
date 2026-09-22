@@ -1,0 +1,29 @@
+name: Build ElytrixClans
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - arena/01a0bcd1-o0j8isdefh9y8hsfeh98y
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 8 для ElytrixClans
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+
+      - name: Собрать ElytrixClans
+        run: mvn -B -ntp clean package
+
+      - name: Выложить jar как артефакт
+        uses: actions/upload-artifact@v4
+        with:
+          name: ElytrixClans
+          path: target/ElytrixClans.jar
