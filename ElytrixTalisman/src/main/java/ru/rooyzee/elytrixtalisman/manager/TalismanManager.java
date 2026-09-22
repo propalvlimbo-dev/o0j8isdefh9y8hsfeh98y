@@ -17,8 +17,10 @@ import ru.rooyzee.elytrixtalisman.service.*;
 import ru.rooyzee.elytrixtalisman.util.ColorUtil;
 import ru.rooyzee.elytrixtalisman.util.PlaceholderUtil;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -160,6 +162,16 @@ public class TalismanManager {
             int radius = session.getCaptureRadius();
             Set<UUID> currentTick = new HashSet<>();
 
+            // Сначала ТОЛЬКО считаем: очки клана и банк. Ничего не показываем.
+            //
+            // Раньше actionbar отправлялся прямо здесь, внутри обхода игроков. Банк при
+            // этом рос на каждой итерации, поэтому первый игрок в списке видел банк без
+            // учёта остальных, а последний — со всеми. Отсюда и брались расхождения на
+            // единицу: у стоящих рядом людей числа отличались, и при смене порядка обхода
+            // одно и то же значение прыгало туда-сюда. Показываем всем один итог ниже.
+            List<Player> capturing = new ArrayList<>();
+            List<Player> withoutClan = new ArrayList<>();
+
             talisman.getWorld().getNearbyEntities(talisman, radius, 255, radius).forEach(entity -> {
                 if (!(entity instanceof Player)) return;
                 Player player = (Player) entity;
@@ -177,18 +189,26 @@ public class TalismanManager {
                     participationTracker.addPlayer(player.getUniqueId());
                     // Поимённо: по этому списку кланы в конце раздадут опыт и монеты.
                     participationTracker.addHolder(clan.getName(), player.getName());
-
-                    Map<String, String> abPh = new HashMap<>();
-                    abPh.put("%bank%", String.valueOf(session.getBank()));
-                    abPh.put("%max_bank%", String.valueOf(session.getMaxBank()));
-                    player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-                            TextComponent.fromLegacyText(
-                                    ColorUtil.colorize(PlaceholderUtil.replace(actionBarTemplate, abPh))));
+                    capturing.add(player);
                 } else {
-                    player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-                            TextComponent.fromLegacyText(ColorUtil.colorize(noClanActionBar)));
+                    withoutClan.add(player);
                 }
             });
+
+            // Банк за этот тик посчитан полностью — теперь у всех на экране одно число.
+            Map<String, String> abPh = new HashMap<>();
+            abPh.put("%bank%", String.valueOf(session.getBank()));
+            abPh.put("%max_bank%", String.valueOf(session.getMaxBank()));
+            String actionBar = ColorUtil.colorize(PlaceholderUtil.replace(actionBarTemplate, abPh));
+            for (Player player : capturing) {
+                player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
+                        TextComponent.fromLegacyText(actionBar));
+            }
+            String noClanBar = ColorUtil.colorize(noClanActionBar);
+            for (Player player : withoutClan) {
+                player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
+                        TextComponent.fromLegacyText(noClanBar));
+            }
 
             for (UUID uuid : new HashSet<>(currentTick)) {
                 Player p = Bukkit.getPlayer(uuid);
@@ -206,6 +226,9 @@ public class TalismanManager {
                 }
             }
 
+            // Банк упирается в maxBank (addBank делает Math.min), поэтому на самом верху
+            // разница bank - lastDropBank перестаёт расти и последняя выдача лута может
+            // не случиться. Считаем по реально накопленному значению.
             while (session.getBank() - lastDropBank >= pointsPerDrop) {
                 lastDropBank += pointsPerDrop;
                 int uniquePlayers = Math.max(1, participationTracker.getUniqueCount());
