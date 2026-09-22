@@ -28,6 +28,13 @@ not-enough-online:
 
 no-leader: "&7Отсутствует"
 
+# Подпись над тотемом игрока: его личные очки захвата.
+# Эти очки — ставка: убийца забирает их себе, при смерти от окружения они сгорают.
+totem-label: "&#F8BEFB✦ %points%"
+# %killer% %victim% %points%
+totem-points-stolen: "%prefix% &fВы забрали &#F8BEFB%points% &fочков у &#F8BEFB%victim%"
+totem-points-lost: "%prefix% &cВы потеряли &f%points% &cочков — их забрал &f%killer%"
+
 actionbar: "&fОчки захвата: &#F8BEFB%bank%&8/&#F8BEFB%max_bank%"
 actionbar-no-clan: "&cВы не состоите в клане"
 

@@ -130,6 +130,7 @@ public class TalismanManager {
         double totemHeight = configManager.getConfig().getDouble("talisman.totem-height-offset", 1.0);
         double rotSpeed = configManager.getConfig().getDouble("talisman.totem-rotation-speed", 0.08);
         totemService.configure(talismanLoc.clone().add(0.5, 0, 0.5), totemRadius, totemHeight, rotSpeed);
+        totemService.setLabelTemplate(configManager.getMessages().getString("totem-label", "&#F8BEFB✦ %points%"));
 
         regionService.create(loc, session.getRegionId());
         bossBarService.create();
@@ -189,6 +190,8 @@ public class TalismanManager {
                     participationTracker.addPlayer(player.getUniqueId());
                     // Поимённо: по этому списку кланы в конце раздадут опыт и монеты.
                     participationTracker.addHolder(clan.getName(), player.getName());
+                    // Личный счётчик над тотемом. Это же и ставка: убийца заберёт её себе.
+                    totemService.addPoints(player.getUniqueId(), pointsPerStand);
                     capturing.add(player);
                 } else {
                     withoutClan.add(player);
@@ -266,18 +269,43 @@ public class TalismanManager {
         }, 0L, 1L);
     }
 
-    public void addKill(String killerClan, String victimClan) {
-        if (session == null || session.getState() != TalismanState.RUNNING) return;
+    /**
+     * Убийство на точке.
+     *
+     * Кроме обычных очков за фраг убийца забирает личные очки жертвы: они уже были
+     * начислены её клану, поэтому здесь их нужно и списать с проигравшего клана, и
+     * выдать победившему. Иначе награбленное задвоилось бы — у жертвы в клановом
+     * счёте, у убийцы вторым начислением.
+     *
+     * @return сколько очков перешло убийце (0, если жертве нечего было терять)
+     */
+    public int addKill(String killerClan, String victimClan, UUID killerUuid, UUID victimUuid) {
+        if (session == null || session.getState() != TalismanState.RUNNING) return 0;
         int pointsPerKill = configManager.getConfig().getInt("capture.points-per-kill", 5);
         session.getData(killerClan).addKill();
         session.getData(killerClan).addCapturePoints(pointsPerKill);
         session.addBank(pointsPerKill);
         session.getData(victimClan).addDeath();
+
+        int stolen = totemService.transferPoints(victimUuid, killerUuid);
+        if (stolen > 0) {
+            session.getData(victimClan).addCapturePoints(-stolen);
+            session.getData(killerClan).addCapturePoints(stolen);
+        }
+        return stolen;
     }
 
-    public void handleDeathOnEvent(UUID victimUuid) {
+    /**
+     * Смерть на точке: взрыв тотема.
+     *
+     * @param burnPoints сжечь личные очки. true — когда убийцы-игрока нет (упал, лава,
+     *                   моб): забирать очки некому, они пропадают. При убийстве игроком
+     *                   их уже забрал addKill, и сжигать нечего.
+     */
+    public void handleDeathOnEvent(UUID victimUuid, boolean burnPoints) {
         if (session == null || session.getState() != TalismanState.RUNNING) return;
         if (!activePlayers.contains(victimUuid)) return;
+        if (burnPoints) totemService.burnPoints(victimUuid);
         double power = configManager.getConfig().getDouble("talisman.totem-explode-power", 3.0);
         double damage = configManager.getConfig().getDouble("talisman.totem-explode-damage", 6.0);
         activePlayers.remove(victimUuid);

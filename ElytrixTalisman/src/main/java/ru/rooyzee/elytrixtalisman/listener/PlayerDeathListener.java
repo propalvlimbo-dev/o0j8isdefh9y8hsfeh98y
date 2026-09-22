@@ -1,5 +1,7 @@
 package ru.rooyzee.elytrixtalisman.listener;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -8,15 +10,19 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import ru.rooyzee.elytrixclans.clans.Clan;
 import ru.rooyzee.elytrixtalisman.manager.TalismanManager;
 import ru.rooyzee.elytrixtalisman.service.ClanService;
+import ru.rooyzee.elytrixtalisman.service.MessageService;
 
 public class PlayerDeathListener implements Listener {
 
     private final TalismanManager talismanManager;
     private final ClanService clanService;
+    private final MessageService messageService;
 
-    public PlayerDeathListener(TalismanManager talismanManager, ClanService clanService) {
+    public PlayerDeathListener(TalismanManager talismanManager, ClanService clanService,
+                               MessageService messageService) {
         this.talismanManager = talismanManager;
         this.clanService = clanService;
+        this.messageService = messageService;
     }
 
     @EventHandler
@@ -28,22 +34,41 @@ public class PlayerDeathListener implements Listener {
         Location talisman = talismanManager.getSession().getTalismanBlockLocation();
         if (talisman == null) return;
 
-        if (victim.getWorld().equals(talisman.getWorld())
-                && victim.getLocation().distance(talisman) <= talismanManager.getSession().getCaptureRadius()) {
-            talismanManager.handleDeathOnEvent(victim.getUniqueId());
-        }
+        boolean victimOnPoint = victim.getWorld().equals(talisman.getWorld())
+                && victim.getLocation().distance(talisman) <= talismanManager.getSession().getCaptureRadius();
 
         Player killer = victim.getKiller();
-        if (killer == null) return;
-
         Clan victimClan = clanService.getPlayerClan(victim);
-        Clan killerClan = clanService.getPlayerClan(killer);
-        if (victimClan == null || killerClan == null) return;
-        if (victimClan.getName().equalsIgnoreCase(killerClan.getName())) return;
+        Clan killerClan = killer == null ? null : clanService.getPlayerClan(killer);
 
-        if (!killer.getWorld().equals(talisman.getWorld())) return;
-        if (killer.getLocation().distance(talisman) > talismanManager.getSession().getCaptureRadius()) return;
+        boolean killerCounts = killer != null
+                && victimClan != null
+                && killerClan != null
+                && !victimClan.getName().equalsIgnoreCase(killerClan.getName())
+                && killer.getWorld().equals(talisman.getWorld())
+                && killer.getLocation().distance(talisman) <= talismanManager.getSession().getCaptureRadius();
 
-        talismanManager.addKill(killerClan.getName(), victimClan.getName());
+        // Порядок важен: очки переносим ДО взрыва тотема, иначе он уже снят вместе
+        // с личным счётчиком и забирать будет нечего.
+        int stolen = 0;
+        if (killerCounts) {
+            stolen = talismanManager.addKill(killerClan.getName(), victimClan.getName(),
+                    killer.getUniqueId(), victim.getUniqueId());
+        }
+
+        if (victimOnPoint) {
+            // Очки сжигаем только если их никто не забрал: смерть от мобов, падения,
+            // лавы или от игрока, который сам в захвате не участвовал.
+            talismanManager.handleDeathOnEvent(victim.getUniqueId(), !killerCounts || stolen == 0);
+        }
+
+        if (stolen > 0) {
+            Map<String, String> ph = new HashMap<>();
+            ph.put("%killer%", killer.getName());
+            ph.put("%victim%", victim.getName());
+            ph.put("%points%", String.valueOf(stolen));
+            messageService.send(killer, "totem-points-stolen", ph);
+            messageService.send(victim, "totem-points-lost", ph);
+        }
     }
 }
