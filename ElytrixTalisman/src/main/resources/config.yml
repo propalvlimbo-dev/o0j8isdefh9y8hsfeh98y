@@ -1,5 +1,12 @@
 world: "world"
 remove-schematic-on-end: true
+# Плавное разрушение башни в конце ивента: слои снимаются сверху вниз.
+# layers-per-tick — сколько слоёв за раз (больше = быстрее и грубее),
+# tick-interval   — пауза между шагами в тиках (20 тиков = 1 секунда).
+# При башне высотой 40 блоков значения ниже дают примерно 4 секунды обрушения.
+demolish:
+  layers-per-tick: 1
+  tick-interval: 2
 schematic-name: "totem.schem"
 schematic-offset:
   x: 0

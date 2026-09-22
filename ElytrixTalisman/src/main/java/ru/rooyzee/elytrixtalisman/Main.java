@@ -75,13 +75,35 @@ public final class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PlayerDeathListener(talismanManager, clanService), this);
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(talismanManager, bossBarService), this);
 
+        // Уборка за прошлым запуском. Если сервер упал во время ивента, в мире остаются
+        // регион WorldGuard и сама башня — ни то, ни другое само не исчезает.
+        // Делаем на следующем тике: миры и регионы WorldGuard к этому моменту прогружены.
+        getServer().getScheduler().runTask(this, () -> {
+            try {
+                int removed = talismanManager.removeStaleRegions();
+                if (removed > 0) {
+                    getLogger().info("Удалено регионов от прошлых запусков: " + removed);
+                }
+                schematicService.restorePendingOnStartup();
+            } catch (Throwable t) {
+                getLogger().warning("Не удалось прибраться после прошлого запуска: " + t.getMessage());
+            }
+        });
+
         getLogger().info("ElytrixTalisman loaded successfully");
     }
 
     @Override
     public void onDisable() {
         if (talismanManager != null && talismanManager.isRunning()) {
-            talismanManager.forceStop();
+            // Без анимации: планировщик при выключении уже не работает, и плавный
+            // снос просто не доиграл бы — башня осталась бы стоять.
+            talismanManager.shutdownCleanup();
+        }
+        // Отдельная ветка: ивент уже закончился, но башня ещё оседает. Задача сноса
+        // сейчас будет убита вместе с планировщиком, поэтому дорушиваем разом.
+        if (schematicService != null && schematicService.isDemolishing()) {
+            schematicService.restore();
         }
         if (scheduleManager != null) {
             scheduleManager.cancelAll();

@@ -21,7 +21,9 @@ public class TalismanSession {
     private final Map<String, ClanCaptureData> clanData;
 
     public TalismanSession(int maxBank) {
-        this.regionId = "elytrix_" + UUID.randomUUID().toString().substring(0, 8);
+        // Префикс общий с RegionService: по нему находятся регионы прошлых запусков.
+        this.regionId = ru.rooyzee.elytrixtalisman.service.RegionService.REGION_PREFIX
+                + UUID.randomUUID().toString().substring(0, 8);
         this.bank = 0;
         this.maxBank = maxBank;
         this.state = TalismanState.IDLE;

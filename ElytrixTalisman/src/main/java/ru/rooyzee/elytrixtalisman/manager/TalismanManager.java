@@ -272,7 +272,7 @@ public class TalismanManager {
 
         endTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             if (timer[0] <= 0) {
-                cleanup();
+                cleanup(true);
                 return;
             }
             bossBarService.flashColor();
@@ -280,30 +280,59 @@ public class TalismanManager {
         }, 0L, 20L);
     }
 
+    /** Остановка командой: башня оседает плавно, как и при обычном финале. */
     public void forceStop() {
         cancelMainTask();
         cancelVisualTask();
         cancelEndTask();
-        cleanup();
+        cleanup(true);
     }
 
-    private void cleanup() {
+    /**
+     * Уборка после ивента.
+     *
+     * @param animated сносить башню плавно. При выключении сервера анимации быть не должно:
+     *                 планировщик там уже не работает, и незаконченный снос оставил бы башню.
+     */
+    private void cleanup(boolean animated) {
         cancelEndTask();
         cancelVisualTask();
+        cancelMainTask();
         bossBarService.destroy();
         hologramService.destroy();
         totemService.destroy();
         activePlayers.clear();
         deathCooldown.clear();
+
         if (session != null) {
+            // Регион убираем ВСЕГДА и до сноса башни: даже если снос упадёт,
+            // защищённой зоны в мире не останется.
             regionService.remove(session.getLocation(), session.getRegionId());
+
             if (configManager.getConfig().getBoolean("remove-schematic-on-end", false)) {
-                schematicService.restore();
+                if (animated && schematicService.hasBackup()) {
+                    int layers = configManager.getConfig().getInt("demolish.layers-per-tick", 1);
+                    int interval = configManager.getConfig().getInt("demolish.tick-interval", 2);
+                    schematicService.restoreAnimated(layers, interval, null);
+                } else {
+                    schematicService.restore();
+                }
             }
         }
+
         session = null;
         lastDropBank = 0;
-        participationTracker.reset();
+        participationTracker.resetSession();
+    }
+
+    /** Полная уборка без анимации — для выключения плагина. */
+    public void shutdownCleanup() {
+        cleanup(false);
+    }
+
+    /** Снимает регионы, оставшиеся от прошлых запусков сервера. */
+    public int removeStaleRegions() {
+        return regionService.removeStale(session == null ? null : session.getRegionId());
     }
 
     private void cancelMainTask() {
