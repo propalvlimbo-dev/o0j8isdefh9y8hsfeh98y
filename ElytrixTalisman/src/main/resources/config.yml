@@ -29,7 +29,13 @@ talisman:
     z: 3
   capture-radius: 10
   hologram-height: 1
-  totem-radius: 1.0
+  # Тотемы захватчиков рисуются пакетами (VirtualEntityApi): в мире настоящих
+  # армор-стендов нет, поэтому их не видно чужим плагинам и они не остаются после
+  # падения сервера. Тотем висит над головой СВОЕГО игрока, а не вокруг талисмана:
+  # при большом замесе так понятно, кто именно в захвате.
+  # totem-radius — радиус облёта вокруг владельца,
+  # totem-height-offset — сдвиг по высоте относительно головы.
+  totem-radius: 0.6
   totem-rotation-speed: 0.08
   totem-height-offset: 0
   totem-explode-power: 3.0

@@ -7,6 +7,9 @@ depend:
   - WorldGuard
   - ElytrixClans
   - Essentials
+  # Пакетные тотемы захватчиков. BLib — библиотека, на которой работает VirtualEntityApi.
+  - VirtualEntityApi
+  - BLib
 commands:
   elytrixtalisman:
     permission: elytrixtalisman.admin

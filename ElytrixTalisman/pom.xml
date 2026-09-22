@@ -63,6 +63,15 @@
             <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
         </repository>
+        <!-- VirtualEntityApi и BLib: пакетные сущности для тотемов захвата -->
+        <repository>
+            <id>by1337-repo</id>
+            <url>https://repo.by1337.space/repository/maven-releases/</url>
+        </repository>
+        <repository>
+            <id>by1337-releases</id>
+            <url>https://repo.by1337.space/releases</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -93,6 +102,24 @@
             <version>2.22.0</version>
             <scope>system</scope>
             <systemPath>${project.basedir}/libs/EssentialsX-2.22.0-dev+14-8ba7a44.jar</systemPath>
+        </dependency>
+        <!--
+            Пакетные сущности. Тотемы захватчиков рисуются только в клиентах игроков,
+            поэтому в мире не остаётся настоящих армор-стендов.
+            scope provided: оба плагина ставятся на сервер отдельно, в jar не пакуются.
+        -->
+        <dependency>
+            <groupId>dev.by1337.virtualentity.api</groupId>
+            <artifactId>VirtualEntityApi-api</artifactId>
+            <version>1.4.2</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- Отсюда Vec3d, которым VirtualEntityApi задаёт позиции. -->
+        <dependency>
+            <groupId>org.by1337.blib</groupId>
+            <artifactId>Blib-api</artifactId>
+            <version>1.9.6</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.spigotmc</groupId>
