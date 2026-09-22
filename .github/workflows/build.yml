@@ -6,6 +6,10 @@ on:
     branches:
       - arena/01a0bcd1-o0j8isdefh9y8hsfeh98y
 
+# Нужно, чтобы шаг ниже мог закоммитить собранный jar обратно в ветку.
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -22,8 +26,26 @@ jobs:
       - name: Собрать ElytrixClans
         run: mvn -B -ntp clean package
 
+      - name: Положить jar в build/
+        run: |
+          mkdir -p build
+          cp target/ElytrixClans.jar build/ElytrixClans.jar
+          ls -la build/
+
+      - name: Закоммитить jar в ветку
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f build/ElytrixClans.jar
+          if git diff --cached --quiet; then
+            echo "jar не изменился, коммит не нужен"
+            exit 0
+          fi
+          git commit -m "Сборка: ElytrixClans.jar [skip ci]"
+          git push origin HEAD:${GITHUB_REF_NAME}
+
       - name: Выложить jar как артефакт
         uses: actions/upload-artifact@v4
         with:
           name: ElytrixClans
-          path: target/ElytrixClans.jar
+          path: build/ElytrixClans.jar
