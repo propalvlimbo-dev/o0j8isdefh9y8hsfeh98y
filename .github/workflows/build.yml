@@ -35,7 +35,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin ${GITHUB_REF_NAME}
+          cp build/ElytrixClans.jar /tmp/ElytrixClans.jar
+          git fetch origin ${GITHUB_REF_NAME}
+          git reset --hard origin/${GITHUB_REF_NAME}
+          mkdir -p build
+          cp /tmp/ElytrixClans.jar build/ElytrixClans.jar
           git add -f build/ElytrixClans.jar
           if git diff --cached --quiet; then
             echo "jar не изменился"
@@ -82,9 +86,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin ${GITHUB_REF_NAME}
+          cp ElytrixTalisman/target/ElytrixTalisman.jar /tmp/ElytrixTalisman.jar
+          git fetch origin ${GITHUB_REF_NAME}
+          git reset --hard origin/${GITHUB_REF_NAME}
           mkdir -p build
-          cp ElytrixTalisman/target/ElytrixTalisman.jar build/ElytrixTalisman.jar
+          cp /tmp/ElytrixTalisman.jar build/ElytrixTalisman.jar
           git add -f build/ElytrixTalisman.jar
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "Сборка: ElytrixTalisman.jar [skip ci]"
