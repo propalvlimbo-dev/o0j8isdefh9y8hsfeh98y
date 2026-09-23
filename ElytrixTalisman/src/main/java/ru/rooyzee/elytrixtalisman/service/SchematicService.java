@@ -17,7 +17,6 @@ import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.CuboidRegion;
 import com.sk89q.worldedit.session.ClipboardHolder;
 import com.sk89q.worldedit.world.World;
-import com.sk89q.worldedit.world.block.BaseBlock;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -141,14 +140,18 @@ public class SchematicService {
     }
 
     /**
-     * Плавный снос сверху вниз: каждый тик возвращается несколько слоёв по Y, поэтому
-     * башня оседает, а не исчезает целиком за один кадр.
+     * Рваное обрушение сверху вниз.
      *
-     * Слои идут именно сверху вниз — так выглядит обрушением, а не проваливанием сквозь
-     * землю. Возвращается при этом не воздух, а исходное содержимое участка: если башня
-     * стояла на холме, холм останется на месте.
+     * Ровными слоями башня «утопала» в землю — это читалось как лифт, а не как
+     * разрушение. Теперь у каждой колонки (x, z) своя высота фронта, заданная шумом от
+     * координат: кромка осыпается неровно, где-то остаются зубцы, где-то провалы.
      *
-     * @param layersPerTick сколько слоёв убирать за тик
+     * Вдобавок за один шаг колонка съедает случайную глубину, поэтому куски отваливаются
+     * кусками, а не ровным рядом. Возвращается не воздух, а исходное содержимое участка:
+     * если башня стояла на холме, холм останется.
+     *
+     * @param layersPerTick средняя глубина обрушения за шаг
+     * @param tickInterval  пауза между шагами в тиках
      * @param onDone        что сделать после окончания (может быть null)
      */
     public void restoreAnimated(int layersPerTick, int tickInterval, Runnable onDone) {
@@ -165,16 +168,66 @@ public class SchematicService {
         final BlockVector3 max = backup.getRegion().getMaximumPoint();
         final int step = Math.max(1, layersPerTick);
         final int period = Math.max(1, tickInterval);
-        final int[] y = {max.getBlockY()};
+
+        final int minX = min.getBlockX(), maxX = max.getBlockX();
+        final int minZ = min.getBlockZ(), maxZ = max.getBlockZ();
+        final int minY = min.getBlockY(), maxY = max.getBlockY();
+        final int width = maxX - minX + 1;
+        final int depth = maxZ - minZ + 1;
+
+        // Высота фронта для каждой колонки. Стартовые значения разные, поэтому
+        // обрушение начинается рваной кромкой, а не единым срезом.
+        final int[] front = new int[width * depth];
+        final long seed = System.nanoTime();
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                front[x * depth + z] = maxY - (int) (noise(seed, x, z) * jitter);
+            }
+        }
 
         demolishTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            int processed = 0;
-            while (processed < step && y[0] >= min.getBlockY()) {
-                restoreLayer(world, backup, min, max, y[0]);
-                y[0]--;
-                processed++;
+            boolean anything = false;
+            try (EditSession session = WorldEdit.getInstance().getEditSessionFactory().getEditSession(world, -1)) {
+                org.bukkit.World bukkitWorld = BukkitAdapter.adapt(world);
+                int hitX = Integer.MIN_VALUE, hitY = 0, hitZ = 0, hits = 0;
+
+                for (int x = 0; x < width; x++) {
+                    for (int z = 0; z < depth; z++) {
+                        int idx = x * depth + z;
+                        if (front[idx] < minY) continue;
+                        anything = true;
+
+                        // Глубина укуса за шаг: разброс делает край неровным от кадра к кадру.
+                        int bite = 1 + (int) (noise(seed + front[idx], x, z) * step * 2);
+                        int wx = minX + x, wz = minZ + z;
+
+                        for (int i = 0; i < bite && front[idx] >= minY; i++) {
+                            int y = front[idx];
+                            BlockVector3 pos = BlockVector3.at(wx, y, wz);
+                            boolean had = bukkitWorld != null
+                                    && !bukkitWorld.getBlockAt(wx, y, wz).getType().isAir();
+                            session.setBlock(pos, backup.getFullBlock(pos));
+                            front[idx]--;
+                            if (had) {
+                                hits++;
+                                if (hitX == Integer.MIN_VALUE || (hits & 7) == 0) {
+                                    hitX = wx; hitY = y; hitZ = wz;
+                                }
+                            }
+                        }
+                    }
+                }
+                session.flushSession();
+
+                if (hitX != Integer.MIN_VALUE && bukkitWorld != null) {
+                    rubble(bukkitWorld, hitX, hitY, hitZ, hits);
+                }
+            } catch (Exception e) {
+                plugin.getLogger().warning("Ошибка при обрушении: " + e.getMessage());
+                anything = false;
             }
-            if (y[0] < min.getBlockY()) {
+
+            if (!anything) {
                 cancelDemolish();
                 forget();
                 if (onDone != null) onDone.run();
@@ -182,58 +235,42 @@ public class SchematicService {
         }, 0L, period);
     }
 
-    /** Возврат одного горизонтального среза + пыль и звук по его краю. */
-    private void restoreLayer(World world, Clipboard backup, BlockVector3 min, BlockVector3 max, int y) {
-        org.bukkit.World bukkitWorld = BukkitAdapter.adapt(world);
-        boolean brokeSomething = false;
+    /** Насколько рваная стартовая кромка, в блоках. */
+    private int jitter = 5;
 
-        try (EditSession session = WorldEdit.getInstance().getEditSessionFactory().getEditSession(world, -1)) {
-            for (int x = min.getBlockX(); x <= max.getBlockX(); x++) {
-                for (int z = min.getBlockZ(); z <= max.getBlockZ(); z++) {
-                    BlockVector3 pos = BlockVector3.at(x, y, z);
-                    BaseBlock was = backup.getFullBlock(pos);
+    public void setJitter(int jitter) {
+        this.jitter = Math.max(0, jitter);
+    }
 
-                    // Показываем частицы только там, где реально что-то сносим:
-                    // если в слепке и в мире одно и то же, слой визуально пустой.
-                    if (!brokeSomething && bukkitWorld != null) {
-                        Material current = bukkitWorld.getBlockAt(x, y, z).getType();
-                        boolean wasAir = was.getBlockType() == null
-                                || was.getBlockType().getMaterial().isAir();
-                        if (current != Material.AIR && wasAir) brokeSomething = true;
-                    }
+    /**
+     * Детерминированный шум 0..1 от координат.
+     *
+     * Обычный Random не подходит: колонка должна получать одно и то же значение при
+     * повторном обращении, иначе кромка дёргалась бы каждый кадр вместо устойчивого
+     * осыпания.
+     */
+    private static double noise(long seed, int x, int z) {
+        long h = seed + x * 374761393L + z * 668265263L;
+        h = (h ^ (h >>> 13)) * 1274126177L;
+        h = h ^ (h >>> 16);
+        return (h & 0xFFFF) / 65535.0;
+    }
 
-                    session.setBlock(pos, was);
-                }
-            }
-            session.flushSession();
-        } catch (Exception e) {
-            plugin.getLogger().warning("Failed to restore layer " + y + ": " + e.getMessage());
-        }
-
-        if (brokeSomething && bukkitWorld != null) {
-            effects(bukkitWorld, min, max, y);
+    /** Пыль и грохот в месте обвала. */
+    private void rubble(org.bukkit.World world, int x, int y, int z, int intensity) {
+        Location at = new Location(world, x + 0.5, y + 0.5, z + 0.5);
+        int count = Math.min(30, 4 + intensity / 2);
+        world.spawnParticle(Particle.BLOCK_CRACK, at, count, 1.2, 0.8, 1.2, 0.08,
+                Material.STONE.createBlockData());
+        world.spawnParticle(Particle.SMOKE_LARGE, at, Math.min(12, 2 + count / 3), 0.9, 0.6, 0.9, 0.02);
+        // Чем крупнее обвал, тем ниже питч — так слышно вес падающего куска.
+        float pitch = (float) Math.max(0.45, 0.9 - intensity * 0.01);
+        world.playSound(at, Sound.BLOCK_STONE_BREAK, 1.1f, pitch);
+        if (intensity > 40) {
+            world.playSound(at, Sound.ENTITY_GENERIC_EXPLODE, 0.45f, 0.5f);
         }
     }
 
-    /** Облако пыли по периметру слоя и глухой звук осыпающегося камня. */
-    private void effects(org.bukkit.World world, BlockVector3 min, BlockVector3 max, int y) {
-        double cx = (min.getBlockX() + max.getBlockX()) / 2.0 + 0.5;
-        double cz = (min.getBlockZ() + max.getBlockZ()) / 2.0 + 0.5;
-        double rx = (max.getBlockX() - min.getBlockX()) / 2.0;
-        double rz = (max.getBlockZ() - min.getBlockZ()) / 2.0;
-        double radius = Math.max(1.0, Math.max(rx, rz));
-
-        Location center = new Location(world, cx, y + 0.5, cz);
-        int points = 24;
-        for (int i = 0; i < points; i++) {
-            double angle = (Math.PI * 2 / points) * i;
-            Location at = center.clone().add(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
-            world.spawnParticle(Particle.BLOCK_CRACK, at, 6, 0.3, 0.3, 0.3, 0.05,
-                    org.bukkit.Material.STONE.createBlockData());
-            world.spawnParticle(Particle.SMOKE_NORMAL, at, 3, 0.2, 0.2, 0.2, 0.01);
-        }
-        world.playSound(center, Sound.BLOCK_STONE_BREAK, 1.2f, 0.6f);
-    }
 
     public boolean isDemolishing() {
         return demolishTask != null;

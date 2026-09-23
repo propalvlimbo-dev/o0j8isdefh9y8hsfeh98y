@@ -29,7 +29,6 @@ public final class Main extends JavaPlugin {
     private EssentialsService essentialsService;
     private LootService lootService;
     private HologramService hologramService;
-    private TotemService totemService;
     private ParticleService particleService;
     private LootMenu lootMenu;
 
@@ -54,12 +53,11 @@ public final class Main extends JavaPlugin {
         essentialsService = new EssentialsService(configManager);
         lootService = new LootService(this);
         hologramService = new HologramService();
-        totemService = new TotemService();
         particleService = new ParticleService();
 
         talismanManager = new TalismanManager(this, configManager, messageService, clanService,
                 locationService, regionService, schematicService, bossBarService, rewardService,
-                essentialsService, lootService, hologramService, totemService, particleService,
+                essentialsService, lootService, hologramService, particleService,
                 participationTracker);
 
         scheduleManager = new ScheduleManager(this, configManager, talismanManager, messageService);

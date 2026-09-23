@@ -5,6 +5,8 @@ import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import ru.rooyzee.elytrixclans.clans.Clan;
@@ -39,7 +41,6 @@ public class TalismanManager {
     private final EssentialsService essentialsService;
     private final LootService lootService;
     private final HologramService hologramService;
-    private final TotemService totemService;
     private final ParticleService particleService;
     private final PlayerParticipationTracker participationTracker;
 
@@ -48,6 +49,9 @@ public class TalismanManager {
     private BukkitTask visualTask;
     private BukkitTask endTask;
     private int lastDropBank = 0;
+    /** Сколько мест показывает табло над талисманом. */
+    private static final int TOP_LINES = 3;
+
     private final Set<UUID> activePlayers = new HashSet<>();
     private final Set<UUID> deathCooldown = new HashSet<>();
 
@@ -56,7 +60,7 @@ public class TalismanManager {
                            SchematicService schematicService, BossBarService bossBarService,
                            RewardService rewardService, EssentialsService essentialsService,
                            LootService lootService, HologramService hologramService,
-                           TotemService totemService, ParticleService particleService,
+                           ParticleService particleService,
                            PlayerParticipationTracker participationTracker) {
         this.plugin = plugin;
         this.configManager = configManager;
@@ -70,7 +74,6 @@ public class TalismanManager {
         this.essentialsService = essentialsService;
         this.lootService = lootService;
         this.hologramService = hologramService;
-        this.totemService = totemService;
         this.particleService = particleService;
         this.participationTracker = participationTracker;
     }
@@ -126,11 +129,6 @@ public class TalismanManager {
         Location hologramLoc = talismanLoc.clone().add(0, hologramHeight, 0);
         hologramService.create(hologramLoc, configManager.getMessages().getStringList("hologram"));
 
-        double totemRadius = configManager.getConfig().getDouble("talisman.totem-radius", 2.0);
-        double totemHeight = configManager.getConfig().getDouble("talisman.totem-height-offset", 1.0);
-        double rotSpeed = configManager.getConfig().getDouble("talisman.totem-rotation-speed", 0.08);
-        totemService.configure(talismanLoc.clone().add(0.5, 0, 0.5), totemRadius, totemHeight, rotSpeed);
-        totemService.setLabelTemplate(configManager.getMessages().getString("totem-label", "&#F8BEFB✦ %points%"));
 
         regionService.create(loc, session.getRegionId());
         bossBarService.create();
@@ -190,8 +188,6 @@ public class TalismanManager {
                     participationTracker.addPlayer(player.getUniqueId());
                     // Поимённо: по этому списку кланы в конце раздадут опыт и монеты.
                     participationTracker.addHolder(clan.getName(), player.getName());
-                    // Личный счётчик над тотемом. Это же и ставка: убийца заберёт её себе.
-                    totemService.addPoints(player.getUniqueId(), pointsPerStand);
                     capturing.add(player);
                 } else {
                     withoutClan.add(player);
@@ -217,15 +213,11 @@ public class TalismanManager {
                 Player p = Bukkit.getPlayer(uuid);
                 if (p == null) continue;
                 if (clanService.getPlayerClan(p) == null) continue;
-                if (!activePlayers.contains(uuid)) {
-                    activePlayers.add(uuid);
-                    totemService.addTotem(uuid);
-                }
+                activePlayers.add(uuid);
             }
             for (UUID uuid : new HashSet<>(activePlayers)) {
                 if (!currentTick.contains(uuid)) {
                     activePlayers.remove(uuid);
-                    totemService.removeTotem(uuid);
                 }
             }
 
@@ -247,6 +239,7 @@ public class TalismanManager {
             int untilDrop = Math.max(0, pointsPerDrop - (session.getBank() - lastDropBank));
             Map<String, String> holoPh = new HashMap<>();
             holoPh.put("%points%", String.valueOf(untilDrop));
+            fillTopPlaceholders(holoPh);
             hologramService.update(holoPh);
 
             Map<String, String> bbPh = new HashMap<>();
@@ -263,23 +256,17 @@ public class TalismanManager {
 
         visualTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             if (session == null || session.getTalismanBlockLocation() == null) return;
-            totemService.tick();
             particleService.ring(session.getTalismanBlockLocation().clone().add(0.5, 0, 0.5),
                     particleRadius, particleCount);
         }, 0L, 1L);
     }
 
     /**
-     * Убийство на точке.
+     * Убийство на точке: фраг клану убийцы, смерть клану жертвы.
      *
-     * Кроме обычных очков за фраг убийца забирает личные очки жертвы: они уже были
-     * начислены её клану, поэтому здесь их нужно и списать с проигравшего клана, и
-     * выдать победившему. Иначе награбленное задвоилось бы — у жертвы в клановом
-     * счёте, у убийцы вторым начислением.
-     *
-     * @return сколько очков перешло убийце (0, если жертве нечего было терять)
+     * @return сколько очков начислено клану убийцы
      */
-    public int addKill(String killerClan, String victimClan, UUID killerUuid, UUID victimUuid) {
+    public int addKill(String killerClan, String victimClan) {
         if (session == null || session.getState() != TalismanState.RUNNING) return 0;
         int pointsPerKill = configManager.getConfig().getInt("capture.points-per-kill", 5);
         session.getData(killerClan).addKill();
@@ -287,31 +274,70 @@ public class TalismanManager {
         session.addBank(pointsPerKill);
         session.getData(victimClan).addDeath();
 
-        int stolen = totemService.transferPoints(victimUuid, killerUuid);
-        if (stolen > 0) {
-            session.getData(victimClan).addCapturePoints(-stolen);
-            session.getData(killerClan).addCapturePoints(stolen);
-        }
-        return stolen;
+        return pointsPerKill;
+    }
+
+    /** Смерть захватчика на точке: взрыв и короткий запрет снова копить очки. */
+    public void handleDeathOnEvent(UUID victimUuid) {
+        if (session == null || session.getState() != TalismanState.RUNNING) return;
+        if (!activePlayers.contains(victimUuid)) return;
+        double power = configManager.getConfig().getDouble("talisman.death-explode-power", 3.0);
+        double damage = configManager.getConfig().getDouble("talisman.death-explode-damage", 6.0);
+        activePlayers.remove(victimUuid);
+        deathCooldown.add(victimUuid);
+        explodeAt(victimUuid, power, damage);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> deathCooldown.remove(victimUuid), 60L);
     }
 
     /**
-     * Смерть на точке: взрыв тотема.
+     * Заполняет %top1%..%top3% для табло над талисманом.
      *
-     * @param burnPoints сжечь личные очки. true — когда убийцы-игрока нет (упал, лава,
-     *                   моб): забирать очки некому, они пропадают. При убийстве игроком
-     *                   их уже забрал addKill, и сжигать нечего.
+     * Места, которые ещё никто не занял, показываются как top-empty, а не пропускаются:
+     * иначе строки табло скакали бы вверх-вниз по мере появления кланов, и читать его
+     * было бы невозможно. Высота табло постоянная с самого начала ивента.
      */
-    public void handleDeathOnEvent(UUID victimUuid, boolean burnPoints) {
-        if (session == null || session.getState() != TalismanState.RUNNING) return;
-        if (!activePlayers.contains(victimUuid)) return;
-        if (burnPoints) totemService.burnPoints(victimUuid);
-        double power = configManager.getConfig().getDouble("talisman.totem-explode-power", 3.0);
-        double damage = configManager.getConfig().getDouble("talisman.totem-explode-damage", 6.0);
-        activePlayers.remove(victimUuid);
-        deathCooldown.add(victimUuid);
-        totemService.explodeTotem(victimUuid, power, damage);
-        Bukkit.getScheduler().runTaskLater(plugin, () -> deathCooldown.remove(victimUuid), 60L);
+    private void fillTopPlaceholders(Map<String, String> holder) {
+        String empty = configManager.getMessages().getString("top-empty", "&8· · ·");
+        Map<String, ClanCaptureData> top = session.getTopClans(TOP_LINES);
+
+        int place = 1;
+        for (Map.Entry<String, ClanCaptureData> entry : top.entrySet()) {
+            // Клан с нулём очков в топе не показываем: он попал в список, потому что
+            // словил смерть на точке, но захватом это не является.
+            if (entry.getValue().getCapturePoints() <= 0) continue;
+
+            String template = configManager.getMessages()
+                    .getString("top-line-" + place, "&f%place%. %clan% &8— &f%points%");
+            Map<String, String> line = new HashMap<>();
+            line.put("%place%", String.valueOf(place));
+            line.put("%clan%", entry.getKey());
+            line.put("%points%", String.valueOf(entry.getValue().getCapturePoints()));
+            holder.put("%top" + place + "%", PlaceholderUtil.replace(template, line));
+            place++;
+        }
+        for (int i = place; i <= TOP_LINES; i++) {
+            holder.put("%top" + i + "%", empty);
+        }
+    }
+
+    /** Взрыв на месте гибели захватчика. */
+    private void explodeAt(UUID victimUuid, double power, double damage) {
+        Player victim = Bukkit.getPlayer(victimUuid);
+        if (victim == null) return;
+        Location loc = victim.getLocation();
+        if (loc.getWorld() == null) return;
+
+        loc.getWorld().spawnParticle(Particle.EXPLOSION_HUGE, loc, 1);
+        loc.getWorld().playSound(loc, Sound.ENTITY_GENERIC_EXPLODE, 1.5f, 1.0f);
+
+        for (org.bukkit.entity.Entity e : loc.getWorld().getNearbyEntities(loc, power, power, power)) {
+            if (!(e instanceof Player)) continue;
+            Player p = (Player) e;
+            if (p.getUniqueId().equals(victimUuid)) continue;
+            if (!p.isDead() && p.getLocation().distance(loc) <= power) {
+                p.damage(damage);
+            }
+        }
     }
 
     private void beginEnding() {
@@ -351,7 +377,6 @@ public class TalismanManager {
         cancelMainTask();
         bossBarService.destroy();
         hologramService.destroy();
-        totemService.destroy();
         activePlayers.clear();
         deathCooldown.clear();
 
@@ -363,7 +388,8 @@ public class TalismanManager {
             if (configManager.getConfig().getBoolean("remove-schematic-on-end", false)) {
                 if (animated && schematicService.hasBackup()) {
                     int layers = configManager.getConfig().getInt("demolish.layers-per-tick", 1);
-                    int interval = configManager.getConfig().getInt("demolish.tick-interval", 2);
+                    int interval = configManager.getConfig().getInt("demolish.tick-interval", 6);
+                    schematicService.setJitter(configManager.getConfig().getInt("demolish.jitter", 5));
                     schematicService.restoreAnimated(layers, interval, null);
                 } else {
                     schematicService.restore();

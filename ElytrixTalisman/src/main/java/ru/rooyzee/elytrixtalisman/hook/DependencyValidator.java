@@ -4,7 +4,6 @@ import org.bukkit.Bukkit;
 import ru.rooyzee.elytrixtalisman.hook.impl.ElytrixClansHook;
 import ru.rooyzee.elytrixtalisman.hook.impl.EssentialsHook;
 import ru.rooyzee.elytrixtalisman.hook.impl.WorldEditHook;
-import ru.rooyzee.elytrixtalisman.hook.impl.VirtualEntityHook;
 import ru.rooyzee.elytrixtalisman.hook.impl.WorldGuardHook;
 
 import java.util.Arrays;
@@ -17,8 +16,7 @@ public class DependencyValidator {
                 new WorldEditHook(),
                 new WorldGuardHook(),
                 new ElytrixClansHook(),
-                new EssentialsHook(),
-                new VirtualEntityHook()
+                new EssentialsHook()
         );
         boolean valid = true;
         for (IHook hook : hooks) {
