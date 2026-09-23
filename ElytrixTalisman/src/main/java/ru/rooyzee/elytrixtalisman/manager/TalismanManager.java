@@ -52,6 +52,9 @@ public class TalismanManager {
     /** Сколько мест показывает табло над талисманом. */
     private static final int TOP_LINES = 3;
 
+    /** Личные очки захвата: ставка, которую забирает убийца. */
+    private final CaptureScoreService captureScore = new CaptureScoreService();
+
     private final Set<UUID> activePlayers = new HashSet<>();
     private final Set<UUID> deathCooldown = new HashSet<>();
 
@@ -94,6 +97,7 @@ public class TalismanManager {
         deathCooldown.clear();
         // Полный сброс: списки захватчиков прошлого ивента не должны попасть в награды.
         participationTracker.resetSession();
+        captureScore.reset();
 
         Location loc = locationService.findSafeLocation();
         if (loc == null) {
@@ -188,6 +192,8 @@ public class TalismanManager {
                     participationTracker.addPlayer(player.getUniqueId());
                     // Поимённо: по этому списку кланы в конце раздадут опыт и монеты.
                     participationTracker.addHolder(clan.getName(), player.getName());
+                    // Личная копилка игрока. Её заберёт тот, кто его убьёт.
+                    captureScore.add(player.getUniqueId(), pointsPerStand);
                     capturing.add(player);
                 } else {
                     withoutClan.add(player);
@@ -195,13 +201,15 @@ public class TalismanManager {
             });
 
             // Банк за этот тик посчитан полностью — теперь у всех на экране одно число.
-            Map<String, String> abPh = new HashMap<>();
-            abPh.put("%bank%", String.valueOf(session.getBank()));
-            abPh.put("%max_bank%", String.valueOf(session.getMaxBank()));
-            String actionBar = ColorUtil.colorize(PlaceholderUtil.replace(actionBarTemplate, abPh));
+            // Личные очки у каждого свои, поэтому строка собирается на игрока.
             for (Player player : capturing) {
+                Map<String, String> abPh = new HashMap<>();
+                abPh.put("%bank%", String.valueOf(session.getBank()));
+                abPh.put("%max_bank%", String.valueOf(session.getMaxBank()));
+                abPh.put("%score%", String.valueOf(captureScore.get(player.getUniqueId())));
                 player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-                        TextComponent.fromLegacyText(actionBar));
+                        TextComponent.fromLegacyText(
+                                ColorUtil.colorize(PlaceholderUtil.replace(actionBarTemplate, abPh))));
             }
             String noClanBar = ColorUtil.colorize(noClanActionBar);
             for (Player player : withoutClan) {
@@ -262,11 +270,16 @@ public class TalismanManager {
     }
 
     /**
-     * Убийство на точке: фраг клану убийцы, смерть клану жертвы.
+     * Убийство на точке.
      *
-     * @return сколько очков начислено клану убийцы
+     * Кроме очков за сам фраг убийца забирает всё, что жертва накопила на точке.
+     * Эти очки уже были начислены клану жертвы, поэтому их нужно и списать у неё, и
+     * выдать клану убийцы — иначе награбленное задвоилось бы: осталось бы в счёте
+     * проигравшего и добавилось победителю.
+     *
+     * @return сколько личных очков перешло убийце (без учёта очков за фраг)
      */
-    public int addKill(String killerClan, String victimClan) {
+    public int addKill(String killerClan, String victimClan, UUID killerUuid, UUID victimUuid) {
         if (session == null || session.getState() != TalismanState.RUNNING) return 0;
         int pointsPerKill = configManager.getConfig().getInt("capture.points-per-kill", 5);
         session.getData(killerClan).addKill();
@@ -274,12 +287,24 @@ public class TalismanManager {
         session.addBank(pointsPerKill);
         session.getData(victimClan).addDeath();
 
-        return pointsPerKill;
+        int stolen = captureScore.transfer(victimUuid, killerUuid);
+        if (stolen > 0) {
+            session.getData(victimClan).addCapturePoints(-stolen);
+            session.getData(killerClan).addCapturePoints(stolen);
+        }
+        return stolen;
     }
 
-    /** Смерть захватчика на точке: взрыв и короткий запрет снова копить очки. */
-    public void handleDeathOnEvent(UUID victimUuid) {
+    /**
+     * Смерть захватчика на точке: взрыв и короткий запрет снова копить очки.
+     *
+     * @param burnScore сжечь личные очки. true — когда их никто не забрал: смерть от
+     *                  мобов, падения, лавы либо от игрока, который сам в захвате не
+     *                  участвовал. При обычном убийстве их уже перенёс addKill.
+     */
+    public void handleDeathOnEvent(UUID victimUuid, boolean burnScore) {
         if (session == null || session.getState() != TalismanState.RUNNING) return;
+        if (burnScore) captureScore.burn(victimUuid);
         if (!activePlayers.contains(victimUuid)) return;
         double power = configManager.getConfig().getDouble("talisman.death-explode-power", 3.0);
         double damage = configManager.getConfig().getDouble("talisman.death-explode-damage", 6.0);
@@ -318,6 +343,11 @@ public class TalismanManager {
         for (int i = place; i <= TOP_LINES; i++) {
             holder.put("%top" + i + "%", empty);
         }
+    }
+
+    /** Личные очки игрока — показываются ему в actionbar. */
+    public int getCaptureScore(UUID uuid) {
+        return captureScore.get(uuid);
     }
 
     /** Взрыв на месте гибели захватчика. */
@@ -400,6 +430,7 @@ public class TalismanManager {
         session = null;
         lastDropBank = 0;
         participationTracker.resetSession();
+        captureScore.reset();
     }
 
     /** Полная уборка без анимации — для выключения плагина. */
