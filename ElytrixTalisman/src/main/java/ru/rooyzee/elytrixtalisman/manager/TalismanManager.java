@@ -52,6 +52,12 @@ public class TalismanManager {
     /** Сколько мест показывает табло над талисманом. */
     private static final int TOP_LINES = 3;
 
+    /** Сколько ошибок подряд терпит тик, прежде чем свернуть ивент. */
+    private static final int MAX_TICK_ERRORS = 20;
+
+    /** Счётчик подряд идущих ошибок тика. Обнуляется любым успешным тиком. */
+    private int tickErrors = 0;
+
     /** Личные очки захвата: ставка, которую забирает убийца. */
     private final CaptureScoreService captureScore = new CaptureScoreService();
 
@@ -95,6 +101,7 @@ public class TalismanManager {
         lastDropBank = 0;
         activePlayers.clear();
         deathCooldown.clear();
+        tickErrors = 0;
         // Полный сброс: списки захватчиков прошлого ивента не должны попасть в награды.
         participationTracker.resetSession();
         captureScore.reset();
@@ -155,15 +162,23 @@ public class TalismanManager {
             try {
                 tickCapture(pointsPerStand, actionBarTemplate, noClanActionBar,
                         noLeader, pointsPerDrop, itemsPerPlayer);
+                tickErrors = 0;
             } catch (Throwable t) {
-                // Исключение внутри runTaskTimer молча убивает задачу: ивент повисает
-                // навсегда, талисман не заканчивается, табло не убирается. Ловим здесь
-                // и корректно сворачиваем ивент.
-                plugin.getLogger().severe("Ошибка в тике талисмана, ивент остановлен: " + t);
+                // Исключение внутри runTaskTimer молча убивает задачу: ивент повис бы
+                // навсегда, а табло осталось висеть. Поэтому ловим здесь.
+                //
+                // Но сворачивать ивент из-за одного сбоя нельзя: случайная ошибка в
+                // одном тике убивала весь захват и снимала табло прямо посреди игры.
+                // Терпим несколько подряд и только потом сдаёмся.
+                tickErrors++;
+                plugin.getLogger().severe("Ошибка в тике талисмана (" + tickErrors + "): " + t);
                 t.printStackTrace();
-                try {
-                    forceStop();
-                } catch (Throwable ignored) {
+                if (tickErrors >= MAX_TICK_ERRORS) {
+                    plugin.getLogger().severe("Слишком много ошибок подряд, ивент остановлен");
+                    try {
+                        forceStop();
+                    } catch (Throwable ignored) {
+                    }
                 }
             }
         }, 0L, tickInterval);
@@ -330,23 +345,26 @@ public class TalismanManager {
     public int handleDeathOnEvent(UUID victimUuid, String victimClan, boolean burnScore) {
         if (session == null || session.getState() != TalismanState.RUNNING) return 0;
 
-        int burned = 0;
-        if (burnScore) {
-            burned = captureScore.burn(victimUuid);
-            // Очки уже были начислены клану, пока игрок стоял на точке. Если их никто
-            // не забрал, они должны сгореть и в клановом зачёте — иначе смерть без
-            // убийцы ничего клану не стоит, и выгодно самоубиваться перед потерей очков.
-            if (burned > 0 && victimClan != null) {
-                session.getData(victimClan).addCapturePoints(-burned);
-            }
-        }
+        // Личная ставка сгорает: её больше некому забрать.
+        //
+        // А вот КЛАНОВЫЕ очки остаются. Игрок их честно выстоял на точке, и они уже
+        // засчитаны в захват — смерть не должна откатывать общий прогресс клана назад.
+        // Списываются они только при убийстве, когда буквально переходят другому клану
+        // (это делает addKill). Иначе смерть от лавы стирала бы вклад всей команды.
+        int burned = burnScore ? captureScore.burn(victimUuid) : 0;
 
         if (!activePlayers.contains(victimUuid)) return burned;
         double power = configManager.getConfig().getDouble("talisman.death-explode-power", 3.0);
         double damage = configManager.getConfig().getDouble("talisman.death-explode-damage", 6.0);
         activePlayers.remove(victimUuid);
         deathCooldown.add(victimUuid);
-        explodeAt(victimUuid, power, damage);
+
+        // Взрыв откладываем на следующий тик. Сейчас мы внутри PlayerDeathEvent, и
+        // damage() отсюда может поднять вложенное событие смерти: исключение улетит
+        // в тик талисмана, аварийная остановка свернёт ивент и снимет табло — со
+        // стороны это выглядит как «после моей смерти голограмма пропала».
+        Location deathLoc = victimLocation(victimUuid);
+        Bukkit.getScheduler().runTask(plugin, () -> explodeAt(deathLoc, victimUuid, power, damage));
         Bukkit.getScheduler().runTaskLater(plugin, () -> deathCooldown.remove(victimUuid), 60L);
         return burned;
     }
@@ -387,12 +405,15 @@ public class TalismanManager {
         return captureScore.get(uuid);
     }
 
-    /** Взрыв на месте гибели захватчика. */
-    private void explodeAt(UUID victimUuid, double power, double damage) {
+    /** Точка гибели: снимаем сразу, к следующему тику игрок уже возродится на споне. */
+    private Location victimLocation(UUID victimUuid) {
         Player victim = Bukkit.getPlayer(victimUuid);
-        if (victim == null) return;
-        Location loc = victim.getLocation();
-        if (loc.getWorld() == null) return;
+        return victim == null ? null : victim.getLocation().clone();
+    }
+
+    /** Взрыв на месте гибели захватчика. */
+    private void explodeAt(Location loc, UUID victimUuid, double power, double damage) {
+        if (loc == null || loc.getWorld() == null) return;
 
         loc.getWorld().spawnParticle(Particle.EXPLOSION_HUGE, loc, 1);
         loc.getWorld().playSound(loc, Sound.ENTITY_GENERIC_EXPLODE, 1.5f, 1.0f);
@@ -401,7 +422,10 @@ public class TalismanManager {
             if (!(e instanceof Player)) continue;
             Player p = (Player) e;
             if (p.getUniqueId().equals(victimUuid)) continue;
-            if (!p.isDead() && p.getLocation().distance(loc) <= power) {
+            // Мир проверяем до distance(): для локаций из разных миров он бросает
+            // исключение, а оно здесь оборвало бы остаток взрыва.
+            if (p.isDead() || !p.getWorld().equals(loc.getWorld())) continue;
+            if (p.getLocation().distance(loc) <= power) {
                 p.damage(damage);
             }
         }
@@ -411,7 +435,7 @@ public class TalismanManager {
         session.setState(TalismanState.ENDING);
         rewardService.giveRewards(session);
 
-        int countdown = configManager.getConfig().getInt("stop-countdown", 10);
+        int countdown = configManager.getConfig().getInt("stop-countdown", 2);
         final int[] timer = {countdown};
 
         endTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
@@ -455,8 +479,8 @@ public class TalismanManager {
             if (configManager.getConfig().getBoolean("remove-schematic-on-end", false)) {
                 if (animated && schematicService.hasBackup()) {
                     int layers = configManager.getConfig().getInt("demolish.layers-per-tick", 1);
-                    int interval = configManager.getConfig().getInt("demolish.tick-interval", 6);
-                    schematicService.setJitter(configManager.getConfig().getInt("demolish.jitter", 5));
+                    int interval = configManager.getConfig().getInt("demolish.tick-interval", 12);
+                    schematicService.setJitter(configManager.getConfig().getInt("demolish.jitter", 6));
                     schematicService.restoreAnimated(layers, interval, null);
                 } else {
                     schematicService.restore();
