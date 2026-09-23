@@ -16,6 +16,7 @@ import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.CuboidRegion;
 import com.sk89q.worldedit.session.ClipboardHolder;
+import com.sk89q.worldedit.world.block.BaseBlock;
 import com.sk89q.worldedit.world.World;
 import java.io.File;
 import java.io.FileInputStream;
@@ -174,13 +175,40 @@ public class SchematicService {
         final int width = maxX - minX + 1;
         final int depth = maxZ - minZ + 1;
 
-        // Высота фронта для каждой колонки. Стартовые значения разные, поэтому
-        // обрушение начинается рваной кромкой, а не единым срезом.
+        // Высота фронта для каждой колонки.
+        //
+        // Ищем ПЕРВЫЙ НЕПУСТОЙ БЛОК сверху, а не потолок региона. Регион схематики выше
+        // постройки: раньше фронт стартовал с maxY и первые секунды молча перемалывал
+        // воздух — со стороны казалось, что снос начинается с задержкой.
+        //
+        // Рваность теперь задаётся задержкой старта колонки, а НЕ сдвигом фронта вниз.
+        // Сдвиг был ошибкой: блоки выше сдвинутого старта не восстанавливались вообще и
+        // остались бы висеть в воздухе после «сноса».
         final int[] front = new int[width * depth];
+        final int[] delay = new int[width * depth];
         final long seed = System.nanoTime();
+        org.bukkit.World scanWorld = BukkitAdapter.adapt(world);
+
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
-                front[x * depth + z] = maxY - (int) (noise(seed, x, z) * jitter);
+                int idx = x * depth + z;
+                int wx = minX + x, wz = minZ + z;
+
+                int top = minY - 1;
+                for (int y = maxY; y >= minY; y--) {
+                    // Смотрим и мир, и слепок. Мир — чтобы не молоть воздух над башней.
+                    // Слепок — потому что постройка могла срубить то, что росло выше неё
+                    // (ветки, листва): если начать ниже, это уже не восстановится.
+                    boolean solidNow = scanWorld != null
+                            && !scanWorld.getBlockAt(wx, y, wz).getType().isAir();
+                    boolean solidBefore = !isAirInBackup(backup, wx, y, wz);
+                    if (solidNow || solidBefore) {
+                        top = y;
+                        break;
+                    }
+                }
+                front[idx] = top;
+                delay[idx] = top < minY ? 0 : (int) (noise(seed, x, z) * jitter);
             }
         }
 
@@ -195,6 +223,12 @@ public class SchematicService {
                         int idx = x * depth + z;
                         if (front[idx] < minY) continue;
                         anything = true;
+
+                        // Колонка ещё не начала осыпаться — этим и создаётся рваный край.
+                        if (delay[idx] > 0) {
+                            delay[idx]--;
+                            continue;
+                        }
 
                         // Глубина укуса за шаг: разброс делает край неровным от кадра к кадру.
                         int bite = 1 + (int) (noise(seed + front[idx], x, z) * step * 2);
@@ -232,6 +266,17 @@ public class SchematicService {
                 if (onDone != null) onDone.run();
             }
         }, 0L, period);
+    }
+
+    /** Был ли в исходном участке воздух в этой точке. */
+    private static boolean isAirInBackup(Clipboard backup, int x, int y, int z) {
+        try {
+            BaseBlock was = backup.getFullBlock(BlockVector3.at(x, y, z));
+            return was == null || was.getBlockType() == null
+                    || was.getBlockType().getMaterial().isAir();
+        } catch (Throwable t) {
+            return true;
+        }
     }
 
     /** Насколько рваная стартовая кромка, в блоках. */
