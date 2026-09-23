@@ -66,6 +66,17 @@ public class TalismanSession {
         this.bank = Math.min(this.bank + amount, maxBank);
     }
 
+    /**
+     * Убирает очки из банка — смерть без убийцы откатывает захваченное.
+     *
+     * Ниже нуля не опускаемся: банк — это шкала прогресса, отрицательной она быть
+     * не может, иначе прогресс-бар боссбара уедет в минус.
+     */
+    public void removeBank(int amount) {
+        if (amount <= 0) return;
+        this.bank = Math.max(0, this.bank - amount);
+    }
+
     public int getMaxBank() {
         return maxBank;
     }

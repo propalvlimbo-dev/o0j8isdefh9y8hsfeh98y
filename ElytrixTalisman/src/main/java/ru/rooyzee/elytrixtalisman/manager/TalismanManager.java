@@ -58,6 +58,9 @@ public class TalismanManager {
     /** Счётчик подряд идущих ошибок тика. Обнуляется любым успешным тиком. */
     private int tickErrors = 0;
 
+    /** Момент старта ивента: по нему считается предельная длительность. */
+    private long startedAt = 0L;
+
     /** Личные очки захвата: ставка, которую забирает убийца. */
     private final CaptureScoreService captureScore = new CaptureScoreService();
 
@@ -102,6 +105,7 @@ public class TalismanManager {
         activePlayers.clear();
         deathCooldown.clear();
         tickErrors = 0;
+        startedAt = System.currentTimeMillis();
         // Полный сброс: списки захватчиков прошлого ивента не должны попасть в награды.
         participationTracker.resetSession();
         captureScore.reset();
@@ -203,6 +207,21 @@ public class TalismanManager {
             if (session == null || session.getState() != TalismanState.RUNNING) return;
 
             if (session.isBankFull()) {
+                cancelMainTask();
+                beginEnding();
+                return;
+            }
+
+            // Страховка от бесконечного ивента.
+            //
+            // Банк теперь умеет убывать: смерть без убийцы откатывает захваченное.
+            // Если игроки активно гибнут сами, прогресс может топтаться на месте и
+            // талисман не закончится никогда. Поэтому жёсткий предел по времени —
+            // после него ивент завершается с тем, что накоплено.
+            int maxMinutes = configManager.getConfig().getInt("max-duration-minutes", 30);
+            if (maxMinutes > 0 && startedAt > 0
+                    && System.currentTimeMillis() - startedAt > maxMinutes * 60_000L) {
+                plugin.getLogger().info("Талисман завершён по истечении времени");
                 cancelMainTask();
                 beginEnding();
                 return;
@@ -345,13 +364,23 @@ public class TalismanManager {
     public int handleDeathOnEvent(UUID victimUuid, String victimClan, boolean burnScore) {
         if (session == null || session.getState() != TalismanState.RUNNING) return 0;
 
-        // Личная ставка сгорает: её больше некому забрать.
-        //
-        // А вот КЛАНОВЫЕ очки остаются. Игрок их честно выстоял на точке, и они уже
-        // засчитаны в захват — смерть не должна откатывать общий прогресс клана назад.
-        // Списываются они только при убийстве, когда буквально переходят другому клану
-        // (это делает addKill). Иначе смерть от лавы стирала бы вклад всей команды.
+        // Смерть без убийцы обнуляет всё, что игрок наработал на точке: и личную
+        // ставку, и вклад в клан, и общий банк ивента. Забирать некому — очки просто
+        // исчезают, как будто он там и не стоял.
         int burned = burnScore ? captureScore.burn(victimUuid) : 0;
+        if (burned > 0) {
+            if (victimClan != null) session.getData(victimClan).addCapturePoints(-burned);
+            session.removeBank(burned);
+
+            // Банк поехал вниз — планку следующей выдачи лута тоже опускаем. Иначе
+            // она осталась бы выше текущего банка, и лут не выпал бы до тех пор, пока
+            // игроки заново не добьют до старой отметки.
+            int pointsPerDrop = configManager.getConfig().getInt("loot.points-per-drop", 100);
+            if (pointsPerDrop > 0) {
+                lastDropBank = Math.min(lastDropBank,
+                        (session.getBank() / pointsPerDrop) * pointsPerDrop);
+            }
+        }
 
         if (!activePlayers.contains(victimUuid)) return burned;
         double power = configManager.getConfig().getDouble("talisman.death-explode-power", 3.0);
