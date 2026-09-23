@@ -35,6 +35,9 @@ public class HologramService {
     private final Plugin plugin;
     private final List<ArmorStand> lines = new ArrayList<>();
     private final List<UUID> lineIds = new ArrayList<>();
+
+    /** Чанк, удерживаемый от выгрузки, пока висит табло. */
+    private Chunk heldChunk;
     private List<String> template;
     private Location base;
 
@@ -49,6 +52,14 @@ public class HologramService {
 
         this.template = template;
         this.base = baseLocation.clone();
+
+        // Держим чанк загруженным на всё время ивента.
+        //
+        // Строки помечены setPersistent(false), чтобы не остаться в мире после падения
+        // сервера. Обратная сторона: при выгрузке чанка такие сущности удаляются
+        // НАСОВСЕМ. Игрок умирал, улетал на спавн, рядом с талисманом никого не
+        // оставалось — чанк выгружался и уносил табло с собой. Тикет это предотвращает.
+        holdChunk(baseLocation);
 
         double y = baseLocation.getY();
         for (int i = template.size() - 1; i >= 0; i--) {
@@ -72,7 +83,34 @@ public class HologramService {
         }
     }
 
+    /** Ставит тикет удержания чанка, чтобы непостоянные строки не выгрузились. */
+    private void holdChunk(Location at) {
+        try {
+            Chunk chunk = at.getChunk();
+            chunk.addPluginChunkTicket(plugin);
+            heldChunk = chunk;
+        } catch (Throwable t) {
+            plugin.getLogger().warning("Не удалось удержать чанк табло: " + t.getMessage());
+        }
+    }
+
+    private void releaseChunk() {
+        if (heldChunk == null) return;
+        try {
+            heldChunk.removePluginChunkTicket(plugin);
+        } catch (Throwable ignored) {
+        }
+        heldChunk = null;
+    }
+
     public void update(Map<String, String> placeholders) {
+        // Табло могли снести извне: выгрузка чанка, /kill @e, чужой плагин. Тогда
+        // восстанавливаем его на месте, вместо того чтобы молча остаться без табло.
+        if (template != null && base != null && !isAlive()) {
+            List<String> saved = template;
+            Location savedBase = base.clone();
+            create(savedBase, saved);
+        }
         if (template == null || lines.isEmpty()) return;
         for (int i = 0; i < lines.size() && i < template.size(); i++) {
             ArmorStand as = lines.get(i);
@@ -99,6 +137,8 @@ public class HologramService {
             }
         }
         lines.clear();
+
+        releaseChunk();
 
         if (base != null && base.getWorld() != null) {
             sweep(base, 8);

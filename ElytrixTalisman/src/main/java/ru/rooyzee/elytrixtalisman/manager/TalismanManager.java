@@ -5,8 +5,6 @@ import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.Particle;
-import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import ru.rooyzee.elytrixclans.clans.Clan;
@@ -383,17 +381,11 @@ public class TalismanManager {
         }
 
         if (!activePlayers.contains(victimUuid)) return burned;
-        double power = configManager.getConfig().getDouble("talisman.death-explode-power", 3.0);
-        double damage = configManager.getConfig().getDouble("talisman.death-explode-damage", 6.0);
         activePlayers.remove(victimUuid);
         deathCooldown.add(victimUuid);
 
-        // Взрыв откладываем на следующий тик. Сейчас мы внутри PlayerDeathEvent, и
-        // damage() отсюда может поднять вложенное событие смерти: исключение улетит
-        // в тик талисмана, аварийная остановка свернёт ивент и снимет табло — со
-        // стороны это выглядит как «после моей смерти голограмма пропала».
-        Location deathLoc = victimLocation(victimUuid);
-        Bukkit.getScheduler().runTask(plugin, () -> explodeAt(deathLoc, victimUuid, power, damage));
+        // Взрыва при смерти больше нет: он бил по своим же союзникам, поднимал
+        // вложенные события смерти прямо из обработчика и ничего не давал механике.
         Bukkit.getScheduler().runTaskLater(plugin, () -> deathCooldown.remove(victimUuid), 60L);
         return burned;
     }
@@ -434,47 +426,17 @@ public class TalismanManager {
         return captureScore.get(uuid);
     }
 
-    /** Точка гибели: снимаем сразу, к следующему тику игрок уже возродится на споне. */
-    private Location victimLocation(UUID victimUuid) {
-        Player victim = Bukkit.getPlayer(victimUuid);
-        return victim == null ? null : victim.getLocation().clone();
-    }
-
-    /** Взрыв на месте гибели захватчика. */
-    private void explodeAt(Location loc, UUID victimUuid, double power, double damage) {
-        if (loc == null || loc.getWorld() == null) return;
-
-        loc.getWorld().spawnParticle(Particle.EXPLOSION_HUGE, loc, 1);
-        loc.getWorld().playSound(loc, Sound.ENTITY_GENERIC_EXPLODE, 1.5f, 1.0f);
-
-        for (org.bukkit.entity.Entity e : loc.getWorld().getNearbyEntities(loc, power, power, power)) {
-            if (!(e instanceof Player)) continue;
-            Player p = (Player) e;
-            if (p.getUniqueId().equals(victimUuid)) continue;
-            // Мир проверяем до distance(): для локаций из разных миров он бросает
-            // исключение, а оно здесь оборвало бы остаток взрыва.
-            if (p.isDead() || !p.getWorld().equals(loc.getWorld())) continue;
-            if (p.getLocation().distance(loc) <= power) {
-                p.damage(damage);
-            }
-        }
-    }
-
+    /**
+     * Конец ивента: награды и немедленный снос.
+     *
+     * Паузы перед разрушением больше нет — постройка начинает осыпаться сразу, как
+     * только объявлены итоги. Раньше здесь ждали stop-countdown секунд, и всё это
+     * время башня просто стояла.
+     */
     private void beginEnding() {
         session.setState(TalismanState.ENDING);
         rewardService.giveRewards(session);
-
-        int countdown = configManager.getConfig().getInt("stop-countdown", 2);
-        final int[] timer = {countdown};
-
-        endTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            if (timer[0] <= 0) {
-                cleanup(true);
-                return;
-            }
-            bossBarService.flashColor();
-            timer[0]--;
-        }, 0L, 20L);
+        cleanup(true);
     }
 
     /** Остановка командой: башня оседает плавно, как и при обычном финале. */

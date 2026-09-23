@@ -25,7 +25,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
-import org.bukkit.Sound;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.scheduler.BukkitTask;
 import ru.rooyzee.elytrixtalisman.Main;
@@ -256,19 +255,18 @@ public class SchematicService {
         return (h & 0xFFFF) / 65535.0;
     }
 
-    /** Пыль и грохот в месте обвала. */
+    /**
+     * Пыль в месте обвала.
+     *
+     * Звуков намеренно нет: снос идёт десятки секунд, и постоянный грохот камня
+     * забивал всё вокруг. Разрушение показывается только визуально.
+     */
     private void rubble(org.bukkit.World world, int x, int y, int z, int intensity) {
         Location at = new Location(world, x + 0.5, y + 0.5, z + 0.5);
         int count = Math.min(30, 4 + intensity / 2);
         world.spawnParticle(Particle.BLOCK_CRACK, at, count, 1.2, 0.8, 1.2, 0.08,
                 Material.STONE.createBlockData());
         world.spawnParticle(Particle.SMOKE_LARGE, at, Math.min(12, 2 + count / 3), 0.9, 0.6, 0.9, 0.02);
-        // Чем крупнее обвал, тем ниже питч — так слышно вес падающего куска.
-        float pitch = (float) Math.max(0.45, 0.9 - intensity * 0.01);
-        world.playSound(at, Sound.BLOCK_STONE_BREAK, 1.1f, pitch);
-        if (intensity > 40) {
-            world.playSound(at, Sound.ENTITY_GENERIC_EXPLODE, 0.45f, 0.5f);
-        }
     }
 
 
