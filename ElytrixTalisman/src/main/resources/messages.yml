@@ -8,16 +8,17 @@ start:
   - "&#F8BEFB&l┃ &fТоп 3 клана получат &#F8BEFBкоины &fи &#F8BEFBопыт"
   - ""
 
-reward-broadcast:
-  - ""
-  - "%prefix% &#F8BEFBТалисман захвачен!"
-  - "&#F8BEFB&l┃ &fМесто: &#F8BEFB#%place%"
-  - "&#F8BEFB&l┃ &fКлан: &#F8BEFB%clan%"
-  - "&#F8BEFB&l┃ &fОчки захвата: &#F8BEFB%capture_points%"
-  - "&#F8BEFB&l┃ &fУбийств: &#F8BEFB%kills% &8| &fСмертей: &#F8BEFB%deaths%"
-  - "&#F8BEFB&l┃ &fКлану: &a+%exp% опыта"
-  - "&#F8BEFB&l┃ &fЗахватчикам: &a%money% монет &7каждому из %holders%"
-  - ""
+# Итог ивента. Шлётся ОДИН раз, а не по строке на каждый клан.
+# %top% — готовый список мест, собранный плагином из reward-line.
+reward-summary:
+  - "%prefix% &#F8BEFBТалисман захвачен"
+  - "%top%"
+# Строка одного места: %place% %clan% %points% %exp% %money%
+reward-line-1: "&8 &e① &f%clan% &8· &7%points% очк. &8· &a+%exp% опыта&8, &a%money%⛃"
+reward-line-2: "&8 &7② &f%clan% &8· &7%points% очк. &8· &a+%exp% опыта&8, &a%money%⛃"
+reward-line-3: "&8 &c③ &f%clan% &8· &7%points% очк. &8· &a+%exp% опыта&8, &a%money%⛃"
+# Если талисман никто не захватил.
+reward-nobody: "%prefix% &7Талисман угас: его никто не захватил"
 
 not-enough-online:
   - ""
@@ -33,9 +34,11 @@ no-leader: "&7Отсутствует"
 actionbar: "&fЗахват: &#F8BEFB%bank%&8/&#F8BEFB%max_bank%   &8|   &fВаши очки: &#F8BEFB%score%"
 actionbar-no-clan: "&cВы не состоите в клане"
 
-# %killer% %victim% %points%
-score-stolen: "%prefix% &fВы забрали &#F8BEFB%points% &fочков захвата у &#F8BEFB%victim%"
-score-lost: "%prefix% &cВы потеряли &f%points% &cочков — их забрал &f%killer%"
+# Очки захвата при смерти. %killer% %victim% %points%
+score-stolen: "%prefix% &a+%points% &fочков захвата &8(&f%victim%&8)"
+score-lost: "%prefix% &c-%points% &fочков — их забрал &#F8BEFB%killer%"
+# Смерть без убийцы: упал, лава, моб, /kill. Очки сгорают и у игрока, и у клана.
+score-burned: "%prefix% &c-%points% &fочков захвата сгорело"
 
 # Табло над талисманом. Строки идут сверху вниз.
 # %top1% %top2% %top3% — строки топа кланов, уже собранные плагином.

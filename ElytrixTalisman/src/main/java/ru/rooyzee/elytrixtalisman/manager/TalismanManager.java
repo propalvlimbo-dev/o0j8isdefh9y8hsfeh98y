@@ -152,6 +152,39 @@ public class TalismanManager {
         int itemsPerPlayer = configManager.getConfig().getInt("loot.items-per-player", 2);
 
         mainTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            try {
+                tickCapture(pointsPerStand, actionBarTemplate, noClanActionBar,
+                        noLeader, pointsPerDrop, itemsPerPlayer);
+            } catch (Throwable t) {
+                // Исключение внутри runTaskTimer молча убивает задачу: ивент повисает
+                // навсегда, талисман не заканчивается, табло не убирается. Ловим здесь
+                // и корректно сворачиваем ивент.
+                plugin.getLogger().severe("Ошибка в тике талисмана, ивент остановлен: " + t);
+                t.printStackTrace();
+                try {
+                    forceStop();
+                } catch (Throwable ignored) {
+                }
+            }
+        }, 0L, tickInterval);
+
+        double particleRadius = configManager.getConfig().getDouble("talisman.particle-radius", 1.5);
+        int particleCount = configManager.getConfig().getInt("talisman.particle-count", 40);
+
+        visualTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            try {
+                if (session == null || session.getTalismanBlockLocation() == null) return;
+                particleService.ring(session.getTalismanBlockLocation().clone().add(0.5, 0, 0.5),
+                        particleRadius, particleCount);
+            } catch (Throwable ignored) {
+                // Частицы — украшение: их падение не должно ронять ивент.
+            }
+        }, 0L, 1L);
+    }
+
+    /** Один тик захвата. Вынесен из лямбды, чтобы обернуть его в защиту от исключений. */
+    private void tickCapture(int pointsPerStand, String actionBarTemplate, String noClanActionBar,
+                             String noLeader, int pointsPerDrop, int itemsPerPlayer) {
             if (session == null || session.getState() != TalismanState.RUNNING) return;
 
             if (session.isBankFull()) {
@@ -257,16 +290,6 @@ public class TalismanManager {
             bbPh.put("%bank%", String.valueOf(session.getBank()));
             bbPh.put("%max_bank%", String.valueOf(session.getMaxBank()));
             bossBarService.update(bbPh, session.getProgress());
-        }, 0L, tickInterval);
-
-        double particleRadius = configManager.getConfig().getDouble("talisman.particle-radius", 1.5);
-        int particleCount = configManager.getConfig().getInt("talisman.particle-count", 40);
-
-        visualTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            if (session == null || session.getTalismanBlockLocation() == null) return;
-            particleService.ring(session.getTalismanBlockLocation().clone().add(0.5, 0, 0.5),
-                    particleRadius, particleCount);
-        }, 0L, 1L);
     }
 
     /**
@@ -298,20 +321,34 @@ public class TalismanManager {
     /**
      * Смерть захватчика на точке: взрыв и короткий запрет снова копить очки.
      *
-     * @param burnScore сжечь личные очки. true — когда их никто не забрал: смерть от
-     *                  мобов, падения, лавы либо от игрока, который сам в захвате не
-     *                  участвовал. При обычном убийстве их уже перенёс addKill.
+     * @param victimClan клан жертвы; нужен, чтобы списать сгоревшие очки и у клана
+     * @param burnScore  сжечь личные очки. true — когда их никто не забрал: смерть от
+     *                   мобов, падения, лавы, /kill либо от игрока, который сам в
+     *                   захвате не участвовал. При обычном убийстве их перенёс addKill.
+     * @return сколько очков сгорело
      */
-    public void handleDeathOnEvent(UUID victimUuid, boolean burnScore) {
-        if (session == null || session.getState() != TalismanState.RUNNING) return;
-        if (burnScore) captureScore.burn(victimUuid);
-        if (!activePlayers.contains(victimUuid)) return;
+    public int handleDeathOnEvent(UUID victimUuid, String victimClan, boolean burnScore) {
+        if (session == null || session.getState() != TalismanState.RUNNING) return 0;
+
+        int burned = 0;
+        if (burnScore) {
+            burned = captureScore.burn(victimUuid);
+            // Очки уже были начислены клану, пока игрок стоял на точке. Если их никто
+            // не забрал, они должны сгореть и в клановом зачёте — иначе смерть без
+            // убийцы ничего клану не стоит, и выгодно самоубиваться перед потерей очков.
+            if (burned > 0 && victimClan != null) {
+                session.getData(victimClan).addCapturePoints(-burned);
+            }
+        }
+
+        if (!activePlayers.contains(victimUuid)) return burned;
         double power = configManager.getConfig().getDouble("talisman.death-explode-power", 3.0);
         double damage = configManager.getConfig().getDouble("talisman.death-explode-damage", 6.0);
         activePlayers.remove(victimUuid);
         deathCooldown.add(victimUuid);
         explodeAt(victimUuid, power, damage);
         Bukkit.getScheduler().runTaskLater(plugin, () -> deathCooldown.remove(victimUuid), 60L);
+        return burned;
     }
 
     /**
@@ -436,6 +473,18 @@ public class TalismanManager {
     /** Полная уборка без анимации — для выключения плагина. */
     public void shutdownCleanup() {
         cleanup(false);
+    }
+
+    /**
+     * Сносит таблички, оставшиеся от прошлых запусков.
+     *
+     * Ищем вокруг последней известной точки талисмана: она сохраняется вместе со
+     * слепком для отката, поэтому переживает перезапуск. Если её нет, искать негде —
+     * мир большой, и сканировать его целиком нельзя.
+     */
+    public void sweepStaleHolograms() {
+        Location last = schematicService.getPendingCenter();
+        if (last != null) hologramService.sweep(last, 16);
     }
 
     /** Снимает регионы, оставшиеся от прошлых запусков сервера. */

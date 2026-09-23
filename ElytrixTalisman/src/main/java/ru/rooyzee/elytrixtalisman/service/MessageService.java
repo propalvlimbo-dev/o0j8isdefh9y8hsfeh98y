@@ -26,8 +26,21 @@ public class MessageService {
         List<String> lines = configManager.getMessages().getStringList(path);
         for (String line : lines) {
             String msg = ColorUtil.colorize(PlaceholderUtil.replace(line, placeholders));
-            Bukkit.getOnlinePlayers().forEach(p -> p.sendMessage(msg));
+            // Плейсхолдер мог развернуться в несколько строк (например, список мест).
+            // Отправляем их по одной, иначе клиент покажет literal-перенос.
+            for (String part : msg.split("\n")) {
+                Bukkit.getOnlinePlayers().forEach(p -> p.sendMessage(part));
+            }
         }
+    }
+
+    /** Однострочный broadcast: путь хранит строку, а не список. */
+    public void broadcastLine(String path, Map<String, String> placeholders) {
+        placeholders.put("%prefix%", getPrefix());
+        String raw = configManager.getMessages().getString(path, "");
+        if (raw.isEmpty()) return;
+        String msg = ColorUtil.colorize(PlaceholderUtil.replace(raw, placeholders));
+        Bukkit.getOnlinePlayers().forEach(p -> p.sendMessage(msg));
     }
 
     public void send(Player player, String path, Map<String, String> placeholders) {

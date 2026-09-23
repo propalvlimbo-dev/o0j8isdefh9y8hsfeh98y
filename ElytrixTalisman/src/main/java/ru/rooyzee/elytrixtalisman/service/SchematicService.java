@@ -342,6 +342,25 @@ public class SchematicService {
     }
 
     /**
+     * Точка последнего ивента, если уборка ещё не закрыта.
+     *
+     * Читается из того же файла, что и слепок для отката, поэтому переживает
+     * перезапуск. По ней ищутся таблички, оставшиеся висеть после падения сервера.
+     */
+    public Location getPendingCenter() {
+        File meta = pendingMeta();
+        if (!meta.exists()) return null;
+        try {
+            YamlConfiguration cfg = YamlConfiguration.loadConfiguration(meta);
+            org.bukkit.World world = Bukkit.getWorld(cfg.getString("world", ""));
+            if (world == null) return null;
+            return new Location(world, cfg.getInt("x"), cfg.getInt("y"), cfg.getInt("z"));
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
      * Доигрывает уборку, прерванную падением сервера. Зовётся один раз при включении:
      * если прошлый запуск не успел снести башню, она исчезнет сразу после старта.
      */

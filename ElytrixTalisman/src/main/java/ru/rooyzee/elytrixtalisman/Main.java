@@ -52,7 +52,7 @@ public final class Main extends JavaPlugin {
         rewardService = new RewardService(configManager, participationTracker, messageService);
         essentialsService = new EssentialsService(configManager);
         lootService = new LootService(this);
-        hologramService = new HologramService();
+        hologramService = new HologramService(this);
         particleService = new ParticleService();
 
         talismanManager = new TalismanManager(this, configManager, messageService, clanService,
@@ -82,6 +82,10 @@ public final class Main extends JavaPlugin {
                 if (removed > 0) {
                     getLogger().info("Удалено регионов от прошлых запусков: " + removed);
                 }
+                // ВАЖЕН ПОРЯДОК: таблички ищем по точке из файла отката, а
+                // restorePendingOnStartup этот файл в конце удаляет. Сначала уборка
+                // табличек, потом откат башни.
+                talismanManager.sweepStaleHolograms();
                 schematicService.restorePendingOnStartup();
             } catch (Throwable t) {
                 getLogger().warning("Не удалось прибраться после прошлого запуска: " + t.getMessage());
