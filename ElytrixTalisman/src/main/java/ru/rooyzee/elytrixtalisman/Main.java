@@ -70,7 +70,7 @@ public final class Main extends JavaPlugin {
         getCommand("elytrixtalisman").setTabCompleter(cmd);
 
         getServer().getPluginManager().registerEvents(new PlayerMoveListener(talismanManager, essentialsService), this);
-        getServer().getPluginManager().registerEvents(new PlayerDeathListener(talismanManager, clanService, messageService), this);
+        getServer().getPluginManager().registerEvents(new PlayerDeathListener(talismanManager, clanService), this);
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(talismanManager, bossBarService), this);
 
         // Уборка за прошлым запуском. Если сервер упал во время ивента, в мире остаются
