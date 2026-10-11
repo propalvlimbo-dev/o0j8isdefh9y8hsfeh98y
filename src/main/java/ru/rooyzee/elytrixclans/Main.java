@@ -90,6 +90,9 @@ public final class Main extends JavaPlugin {
             // Цвет подсветки хранится в clans.yml — возвращаем его в память после загрузки базы,
             // иначе после рестарта у кланов с glow=true не было цвета и шлемы не красились.
             glowManager.restoreFromStorage();
+            // Фоновая переотправка шлемов: лечит подделку, залипшую на клиенте у тех,
+            // кто уже вышел из клана (сервер сам пакет экипировки в этом случае не шлёт).
+            glowManager.startSyncTask(this);
         } catch (Throwable t) {
             glowManager = null;
             getLogger().warning("ProtocolLib отсутствует. Подсветка союзников недоступна.");
@@ -144,7 +147,10 @@ public final class Main extends JavaPlugin {
     public void onDisable() {
         if (autoSaveTaskId != -1) Bukkit.getScheduler().cancelTask(autoSaveTaskId);
         CloseInventoryUtil.closeAllMenus();
-        if (glowManager != null) glowManager.removeAllGlow();
+        if (glowManager != null) {
+            glowManager.stopSyncTask();
+            glowManager.removeAllGlow();
+        }
         if (killCooldownStorage != null) killCooldownStorage.shutdown();
         if (purchaseCooldownStorage != null) purchaseCooldownStorage.shutdown();
         PlayerHeadCache.shutdown();

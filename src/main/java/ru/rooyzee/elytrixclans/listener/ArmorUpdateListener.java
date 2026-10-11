@@ -50,8 +50,8 @@ public class ArmorUpdateListener implements Listener {
         final Player player = event.getPlayer();
         Main main = Main.getInstance();
         if (main == null || main.getGlowManager() == null) return;
-        Clan clan = main.getClanManager() != null ? main.getClanManager().getPlayerClan(player) : null;
-        if (clan == null || !clan.isGlow()) return;
+        // Проверку «игрок в клане с подсветкой» убрали специально: после смены мира нужно
+        // снять и чужую залипшую подделку у тех, кто в клане уже не состоит.
         Bukkit.getScheduler().runTaskLater(main,
                 () -> {
                     if (player.isOnline() && main.getGlowManager() != null) {

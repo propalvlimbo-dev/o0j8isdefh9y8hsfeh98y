@@ -17,6 +17,7 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
+import org.bukkit.plugin.Plugin;
 import ru.rooyzee.elytrixclans.Main;
 import ru.rooyzee.elytrixclans.clans.Clan;
 import ru.rooyzee.elytrixclans.clans.ClanMember;
@@ -26,6 +27,7 @@ public class GlowManager {
     // Пакетный слушатель читает эту карту, поэтому она конкурентная.
     private final Map<String, Color> clanColors = new ConcurrentHashMap<>();
     private final ProtocolManager protocolManager;
+    private int syncTaskId = -1;
 
     public GlowManager() {
         this.protocolManager = ProtocolLibrary.getProtocolManager();
@@ -60,18 +62,15 @@ public class GlowManager {
     public void disableGlow(Clan clan) {
         if (clan == null) return;
         clan.setGlow(false);
-        for (ClanMember member : clan.getMemberList()) {
-            Player player = member.getPlayer();
-            if (player == null || !player.isOnline()) continue;
-            resetArmorFor(player, clan);
-        }
+        syncClan(clan);
     }
 
     public void removeClanColor(Clan clan) {
         if (clan == null) return;
+        clan.setGlow(false);
         clanColors.remove(key(clan));
         clan.setGlowColor(null);
-        disableGlow(clan);
+        syncClan(clan);
     }
 
     /**
@@ -104,6 +103,18 @@ public class GlowManager {
         return clanColors.get(key(clan));
     }
 
+    /**
+     * Цвет, который реально должен видеть союзник прямо сейчас.
+     *
+     * Единая точка решения и для пакетного слушателя, и для ручной рассылки: раньше слушатель
+     * гасил подсветку на время клановой PvP, а ручная рассылка — нет, и подкрашенный шлем
+     * «застревал» на клиенте до перезахода.
+     */
+    public Color effectiveColor(Clan clan) {
+        if (clan == null || !clan.isGlow() || clan.isPvp()) return null;
+        return clanColors.get(key(clan));
+    }
+
     public boolean hasGlow(Clan clan) {
         return clanColors.containsKey(key(clan));
     }
@@ -116,28 +127,92 @@ public class GlowManager {
         return !clanColors.isEmpty();
     }
 
-    public void refreshClanArmor(Clan clan) {
-        if (clan == null || !clan.isGlow()) return;
-        sendClanArmorNow(clan);
-        // Повтор через тик: сразу после клика по цвету клиент ещё может получить от сервера
-        // «настоящую» экипировку (обновление инвентаря после закрытия меню) и перекрыть наш
-        // пакет — из-за этого шлем у союзников появлялся не сразу, а только после перезахода
-        // или смены брони.
-        scheduleRefresh(clan, 1L);
-        scheduleRefresh(clan, 5L);
+    // ------------------------------------------------------------------
+    //  Синхронизация шлемов
+    // ------------------------------------------------------------------
+
+    /**
+     * Рассылает актуальный шлем игрока ВСЕМ, кто его сейчас видит.
+     *
+     * Союзникам уходит подкрашенный кожаный шлем, всем остальным — настоящий. Важно именно
+     * «всем остальным», а не только клану: подделка живёт на клиенте до следующего пакета
+     * экипировки, поэтому игрок, вышедший из клана (или наблюдавший за бывшим союзником),
+     * продолжал видеть кожаный шлем, пока не перезайдёт.
+     */
+    public void syncHelmetFor(Player wearer) {
+        if (wearer == null || !wearer.isOnline()) return;
+        Main main = Main.getInstance();
+        if (main == null || main.getClanManager() == null) return;
+
+        Clan clan = main.getClanManager().getPlayerClan(wearer);
+        Color color = effectiveColor(clan);
+        ItemStack real = realHelmet(wearer);
+        ItemStack fake = color != null ? createColoredHelmet(color) : null;
+
+        List<Player> nearby = wearer.getWorld().getPlayers();
+        for (int i = 0, size = nearby.size(); i < size; i++) {
+            Player viewer = nearby.get(i);
+            if (viewer == null || viewer.equals(wearer) || !viewer.isOnline()) continue;
+            if (!canTrack(viewer, wearer)) continue;
+            boolean ally = fake != null && main.getClanManager().getPlayerClan(viewer) == clan;
+            sendEquipmentPacket(viewer, wearer.getEntityId(), EnumWrappers.ItemSlot.HEAD, ally ? fake : real);
+        }
     }
 
-    private void sendClanArmorNow(Clan clan) {
-        if (clan == null || !clan.isGlow()) return;
+    /** Обратное направление: присылает зрителю актуальные шлемы всех, кого он видит. */
+    public void syncViewer(Player viewer) {
+        if (viewer == null || !viewer.isOnline()) return;
+        Main main = Main.getInstance();
+        if (main == null || main.getClanManager() == null) return;
+
+        Clan viewerClan = main.getClanManager().getPlayerClan(viewer);
+        List<Player> nearby = viewer.getWorld().getPlayers();
+        for (int i = 0, size = nearby.size(); i < size; i++) {
+            Player wearer = nearby.get(i);
+            if (wearer == null || wearer.equals(viewer) || !wearer.isOnline()) continue;
+            if (!canTrack(viewer, wearer)) continue;
+            Clan wearerClan = main.getClanManager().getPlayerClan(wearer);
+            Color color = wearerClan != null && wearerClan == viewerClan ? effectiveColor(wearerClan) : null;
+            ItemStack helmet = color != null ? createColoredHelmet(color) : realHelmet(wearer);
+            sendEquipmentPacket(viewer, wearer.getEntityId(), EnumWrappers.ItemSlot.HEAD, helmet);
+        }
+    }
+
+    /** Синхронизация по всему составу клана (включение/выключение подсветки, смена цвета). */
+    public void syncClan(Clan clan) {
+        if (clan == null) return;
         for (ClanMember member : clan.getMemberList()) {
             if (member == null) continue;
             Player player = member.getPlayer();
             if (player == null || !player.isOnline()) continue;
-            sendColoredArmorToAllies(player, clan);
+            syncHelmetFor(player);
+            syncViewer(player);
         }
     }
 
-    private void scheduleRefresh(final Clan clan, long delayTicks) {
+    /**
+     * Видит ли зритель носителя прямо сейчас: один мир, не скрыт и в пределах трекинга.
+     * Пакеты для неотслеживаемых сущностей клиент всё равно выбрасывает.
+     */
+    private boolean canTrack(Player viewer, Player wearer) {
+        if (viewer.getWorld() != wearer.getWorld()) return false;
+        if (!viewer.canSee(wearer)) return false;
+        int range = Math.max(64, Bukkit.getViewDistance() * 16);
+        return viewer.getLocation().distanceSquared(wearer.getLocation()) <= (double) range * range;
+    }
+
+    public void refreshClanArmor(Clan clan) {
+        if (clan == null) return;
+        syncClan(clan);
+        // Повтор через тик: сразу после клика по цвету клиент ещё может получить от сервера
+        // «настоящую» экипировку (обновление инвентаря после закрытия меню) и перекрыть наш
+        // пакет — из-за этого шлем у союзников появлялся не сразу, а только после перезахода
+        // или смены брони.
+        scheduleSync(clan, 1L);
+        scheduleSync(clan, 5L);
+    }
+
+    private void scheduleSync(final Clan clan, long delayTicks) {
         final Main main = Main.getInstance();
         if (main == null || !main.isEnabled()) return;
         try {
@@ -145,7 +220,7 @@ public class GlowManager {
                 @Override
                 public void run() {
                     if (main.getGlowManager() == null) return;
-                    sendClanArmorNow(clan);
+                    syncClan(clan);
                 }
             }, delayTicks);
         } catch (IllegalStateException ignored) {
@@ -155,65 +230,19 @@ public class GlowManager {
 
     public void refreshPlayer(Player player) {
         if (player == null) return;
-        Main main = Main.getInstance();
-        if (main == null || main.getClanManager() == null) return;
-        Clan clan = main.getClanManager().getPlayerClan(player);
-        if (clan == null || !clan.isGlow()) return;
-        // Обе стороны: и союзники видят цветной шлем игрока, и сам игрок — цветные шлемы союзников.
-        sendColoredArmorToAllies(player, clan);
-        sendAlliesArmorTo(player, clan);
-    }
-
-    /** Показывает игроку подкрашенные шлемы его союзников (вход в игру, респавн, смена мира). */
-    private void sendAlliesArmorTo(Player viewer, Clan clan) {
-        if (viewer == null || clan == null) return;
-        Color color = clanColors.get(key(clan));
-        if (color == null) return;
-        ItemStack coloredHelmet = createColoredHelmet(color);
-        for (ClanMember member : clan.getMemberList()) {
-            if (member == null) continue;
-            Player ally = member.getPlayer();
-            if (ally == null || !ally.isOnline()) continue;
-            if (ally.equals(viewer)) continue;
-            sendEquipmentPacket(viewer, ally.getEntityId(), EnumWrappers.ItemSlot.HEAD, coloredHelmet);
-        }
-    }
-
-    private void sendColoredArmorToAllies(Player wearer, Clan clan) {
-        Color color = clanColors.get(key(clan));
-        if (color == null) return;
-
-        ItemStack coloredHelmet = createColoredHelmet(color);
-
-        for (ClanMember member : clan.getMemberList()) {
-            Player viewer = member.getPlayer();
-            if (viewer == null || !viewer.isOnline()) continue;
-            if (viewer.equals(wearer)) continue;
-            sendEquipmentPacket(viewer, wearer.getEntityId(), EnumWrappers.ItemSlot.HEAD, coloredHelmet);
-        }
+        // Обе стороны: и окружающие видят правильный шлем игрока, и сам игрок — правильные
+        // шлемы окружающих. Вызываем даже без клана: так снимается подделка, залипшая
+        // на клиенте с прошлой сессии в клане.
+        syncHelmetFor(player);
+        syncViewer(player);
     }
 
     public void resetArmorFor(Player wearer, Clan clan) {
-        if (wearer == null || clan == null) return;
-        ItemStack realHelmet = wearer.getInventory().getHelmet();
-        if (realHelmet == null) realHelmet = new ItemStack(Material.AIR);
-
-        for (ClanMember member : clan.getMemberList()) {
-            Player viewer = member.getPlayer();
-            if (viewer == null || !viewer.isOnline()) continue;
-            if (viewer.equals(wearer)) continue;
-            sendEquipmentPacket(viewer, wearer.getEntityId(), EnumWrappers.ItemSlot.HEAD, realHelmet);
-        }
+        syncHelmetFor(wearer);
     }
 
     public void resetArmorForEveryone(Player wearer) {
-        if (wearer == null) return;
-        Main main = Main.getInstance();
-        if (main == null || main.getClanManager() == null) return;
-        Clan clan = main.getClanManager().getPlayerClan(wearer);
-        if (clan != null) {
-            resetArmorFor(wearer, clan);
-        }
+        syncHelmetFor(wearer);
     }
 
     /**
@@ -223,26 +252,15 @@ public class GlowManager {
      * getPlayerClan() вернул бы null — именно поэтому подкрашенный шлем раньше «застревал»
      * у обеих сторон до перезахода.
      *
-     * Сбрасываем в обе стороны:
-     *   1) бывшие союзники видят настоящий шлем ушедшего;
-     *   2) ушедший видит настоящие шлемы бывших союзников.
+     * Сбрасываем в обе стороны и по ВСЕМ наблюдателям вокруг, а не только по составу клана:
+     * подделку мог получить и тот, кто уже успел выйти из клана раньше.
      */
     public void resetGlowForLeaver(Player leaver, Clan clan) {
-        if (leaver == null || clan == null) return;
+        if (leaver == null) return;
+        syncHelmetFor(leaver);
+        syncViewer(leaver);
 
-        ItemStack leaverHelmet = realHelmet(leaver);
-        for (ClanMember member : clan.getMemberList()) {
-            if (member == null) continue;
-            Player viewer = member.getPlayer();
-            if (viewer == null || !viewer.isOnline()) continue;
-            if (viewer.equals(leaver)) continue;
-            // Бывшему союзнику — настоящий шлем ушедшего.
-            sendEquipmentPacket(viewer, leaver.getEntityId(), EnumWrappers.ItemSlot.HEAD, leaverHelmet);
-            // Ушедшему — настоящий шлем бывшего союзника.
-            sendEquipmentPacket(leaver, viewer.getEntityId(), EnumWrappers.ItemSlot.HEAD, realHelmet(viewer));
-        }
-
-        // Повтор через тик: телепорт/респавн/закрытие меню в тот же тик может заново
+        // Повтор через пару тиков: телепорт/респавн/закрытие меню в тот же тик может заново
         // прислать клиенту устаревшую экипировку.
         final Main main = Main.getInstance();
         if (main == null || !main.isEnabled()) return;
@@ -251,14 +269,8 @@ public class GlowManager {
                 @Override
                 public void run() {
                     if (!leaver.isOnline()) return;
-                    ItemStack helmet = realHelmet(leaver);
-                    for (ClanMember member : clan.getMemberList()) {
-                        if (member == null) continue;
-                        Player viewer = member.getPlayer();
-                        if (viewer == null || !viewer.isOnline() || viewer.equals(leaver)) continue;
-                        sendEquipmentPacket(viewer, leaver.getEntityId(), EnumWrappers.ItemSlot.HEAD, helmet);
-                        sendEquipmentPacket(leaver, viewer.getEntityId(), EnumWrappers.ItemSlot.HEAD, realHelmet(viewer));
-                    }
+                    syncHelmetFor(leaver);
+                    syncViewer(leaver);
                 }
             }, 2L);
         } catch (IllegalStateException ignored) {
@@ -272,10 +284,54 @@ public class GlowManager {
     }
 
     public void removeAllGlow() {
-        for (Clan clan : Main.getInstance().getClanManager().getClans()) {
-            if (clan.isGlow()) {
+        Main main = Main.getInstance();
+        if (main == null || main.getClanManager() == null) return;
+        for (Clan clan : main.getClanManager().getClans()) {
+            if (clan != null && clan.isGlow()) {
                 disableGlow(clan);
             }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    //  Фоновое «лечение» залипших шлемов
+    // ------------------------------------------------------------------
+
+    /**
+     * Раз в несколько секунд переотправляет корректный шлем носителям из кланов с подсветкой.
+     *
+     * Подделка живёт на клиенте до следующего пакета экипировки, а сервер шлёт его только при
+     * РЕАЛЬНОМ изменении брони. Если у игрока шлема нет вовсе, настоящий «пустой» пакет не
+     * придёт никогда — именно так кожаный шлем и оставался виден тем, кто уже не в клане.
+     */
+    public void startSyncTask(Plugin plugin) {
+        if (plugin == null || syncTaskId != -1) return;
+        syncTaskId = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
+            @Override
+            public void run() {
+                if (clanColors.isEmpty()) return;
+                Main main = Main.getInstance();
+                if (main == null || main.getClanManager() == null) return;
+                for (Clan clan : main.getClanManager().getClans()) {
+                    if (clan == null || !hasGlow(clan)) continue;
+                    for (ClanMember member : clan.getMemberList()) {
+                        if (member == null) continue;
+                        Player player = member.getPlayer();
+                        if (player == null || !player.isOnline()) continue;
+                        try {
+                            syncHelmetFor(player);
+                        } catch (Exception ignored) {
+                        }
+                    }
+                }
+            }
+        }, 200L, 200L).getTaskId();
+    }
+
+    public void stopSyncTask() {
+        if (syncTaskId != -1) {
+            Bukkit.getScheduler().cancelTask(syncTaskId);
+            syncTaskId = -1;
         }
     }
 

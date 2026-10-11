@@ -39,9 +39,11 @@ public class GlowPacketListener extends PacketAdapter {
             if (viewer == null) return;
 
             Clan viewerClan = main.getClanManager().getPlayerClan(viewer);
-            if (viewerClan == null || !viewerClan.isGlow() || viewerClan.isPvp()) return;
+            if (viewerClan == null) return;
 
-            Color color = glowManager.getGlowColor(viewerClan);
+            // Единое правило «виден ли сейчас подкрашенный шлем» живёт в GlowManager,
+            // чтобы слушатель и ручная рассылка не расходились (из-за этого подделка залипала).
+            Color color = glowManager.effectiveColor(viewerClan);
             if (color == null) return;
 
             int entityId = event.getPacket().getIntegers().read(0);
